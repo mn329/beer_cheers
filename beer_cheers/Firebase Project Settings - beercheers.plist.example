@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyBxBkjj6UMSqBJOPvl0rAxoCaL04XgUv8M</string>
+	<string>YOUR_FIREBASE_WEB_API_KEY</string>
 	<key>GCM_SENDER_ID</key>
-	<string>856324301964</string>
+	<string>YOUR_GCM_SENDER_ID</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.minato.beer-cheers</string>
+	<string>com.example.your-app</string>
 	<key>PROJECT_ID</key>
-	<string>beercheers-e9644</string>
+	<string>your-firebase-project-id</string>
 	<key>STORAGE_BUCKET</key>
-	<string>beercheers-e9644.firebasestorage.app</string>
+	<string>your-project-id.appspot.com</string>
 	<key>IS_ADS_ENABLED</key>
 	<false/>
 	<key>IS_APPINVITE_ENABLED</key>
@@ -23,8 +23,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true/>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:856324301964:ios:b0c3f76441b78d62ffc7a9</string>
+	<string>1:000000000000:ios:0000000000000000000000</string>
 	<key>DATABASE_URL</key>
-	<string>https://beercheers-e9644-default-rtdb.asia-southeast1.firebasedatabase.app</string>
+	<string>https://your-project-id-default-rtdb.firebaseio.com</string>
 </dict>
 </plist>

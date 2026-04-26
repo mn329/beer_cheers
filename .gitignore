@@ -14,4 +14,6 @@ xcuserdata/
 
 # 機密を含み得るローカル設定（公開リポジトリ用）
 **/GoogleService-Info.plist
+**/Firebase App Config.plist
+**/Firebase Project Settings - beercheers.plist
 **/secrets.xcconfig
