@@ -44,8 +44,6 @@ git clone https://github.com/mn329/beer_cheers.git
 cd beer_cheers
 ```
 
-`git init` は「まだ Git 管理されていない空のフォルダで、新しくリポジトリを作る」ときのコマンドです。このプロジェクトを取得する用途では **`git clone` が正しい**対応になります（`git init` だけでは GitHub 上の履歴やファイルは入りません）。
-
 ## 開発環境
 
 - **Xcode**（プロジェクトは Xcode 26 系で作成）
@@ -60,7 +58,7 @@ cd beer_cheers
 
 リモート乾杯や Realtime Database を使う場合は、Firebase コンソールから取得した **GoogleService-Info.plist**（または同形式の plist）を用意してください。
 
-1. `beer_cheers/Firebase Project Settings - beercheers.plist.example` をコピーし、同フォルダに **`Firebase Project Settings - beercheers.plist`** という名前で保存する（拡張子 `.example` を外す）。  
+1. `beer_cheers/Firebase Project Settings - beercheers.plist.example` をコピーし、同フォルダに **`Firebase Project Settings - beercheers.plist`** という名前で保存する（拡張子 `.example` を外す）。
 2. 各キーを Firebase の設定値で置き換える。`DATABASE_URL` は Realtime Database の URL を設定する。
 
 `.gitignore` により、上記のローカル plist や `GoogleService-Info.plist` は **Git に含まれません**。チームでは安全な経路で配布するか、各自がコンソールから取得してください。
