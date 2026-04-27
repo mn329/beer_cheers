@@ -278,7 +278,9 @@ final class AirCheersViewModel {
         stopRemoteTriggerListening()
         guard FirebaseApp.app() != nil else {
             #if DEBUG
-            print("[AirCheers] FirebaseApp が nil のため Realtime DB を監視しません（GoogleService-Info 等を確認）")
+            print(
+                "[AirCheers] Firebase 未初期化のため Realtime DB を監視しません。起動ログの [beer_cheers] を確認し、バンドルに GoogleService-Info.plist または Firebase Project Settings - beercheers.plist を置いてください（README 参照）。"
+            )
             #endif
             return
         }
@@ -376,7 +378,9 @@ final class AirCheersViewModel {
     private func publishCheersTriggerToRemoteIfNeeded() {
         guard FirebaseApp.app() != nil else {
             #if DEBUG
-            print("[AirCheers] FirebaseApp が nil のため trigger へ書き込みません")
+            print(
+                "[AirCheers] Firebase 未初期化のため trigger へ書き込みません。起動ログの [beer_cheers] を確認し、バンドルに GoogleService-Info.plist または Firebase Project Settings - beercheers.plist を置いてください（README 参照）。"
+            )
             #endif
             return
         }
