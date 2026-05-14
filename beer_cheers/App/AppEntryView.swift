@@ -2,12 +2,10 @@
 //  AppEntryView.swift
 //  beer_cheers
 //
-//  Created by 石田湊 on 2026/04/26.
+//  起動時に泡パーティクルをバックグラウンドで生成してから RootTabView に切り替えるエントリ。
 //
 
 import SwiftUI
-
-// MARK: - 起動時：泡データをバックグラウンドで用意してから本画面へ
 
 struct AppEntryView: View {
     @State private var viewModel = AirCheersViewModel()
@@ -16,12 +14,13 @@ struct AppEntryView: View {
     var body: some View {
         ZStack {
             if assetsReady {
-                ContentView(viewModel: viewModel)
+                RootTabView(cheersViewModel: viewModel)
             } else {
                 warmupPlaceholder
             }
         }
         .task {
+            // モーション監視を先に開始するとアームクロック計測が始まる
             await MainActor.run {
                 viewModel.startMonitoring()
             }
@@ -35,21 +34,15 @@ struct AppEntryView: View {
 
     private var warmupPlaceholder: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.98, green: 0.72, blue: 0.18),
-                    Color(red: 0.92, green: 0.45, blue: 0.12),
-                    Color(red: 0.55, green: 0.12, blue: 0.08),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-
+            AppBackground()
             ProgressView()
                 .progressViewStyle(.circular)
                 .tint(.white)
                 .scaleEffect(1.15)
         }
     }
+}
+
+#Preview {
+    AppEntryView()
 }
