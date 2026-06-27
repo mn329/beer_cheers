@@ -7,8 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		676E07C52FCFD47C0030FD16 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 676E07C42FCFD47C0030FD16 /* GoogleSignIn */; };
+		676E07C72FCFD47C0030FD16 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 676E07C62FCFD47C0030FD16 /* GoogleSignInSwift */; };
 		67E4FA6D2F9DDBC300A7DF95 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 67E4FA6C2F9DDBC300A7DF95 /* FirebaseAnalytics */; };
 		67E4FA6F2F9DDBC300A7DF95 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 67E4FA6E2F9DDBC300A7DF95 /* FirebaseDatabase */; };
+		67E4FA712F9DDBC300A7DF95 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 67E4FA702F9DDBC300A7DF95 /* FirebaseAuth */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,8 +31,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				676E07C72FCFD47C0030FD16 /* GoogleSignInSwift in Frameworks */,
 				67E4FA6F2F9DDBC300A7DF95 /* FirebaseDatabase in Frameworks */,
+				676E07C52FCFD47C0030FD16 /* GoogleSignIn in Frameworks */,
 				67E4FA6D2F9DDBC300A7DF95 /* FirebaseAnalytics in Frameworks */,
+				67E4FA712F9DDBC300A7DF95 /* FirebaseAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,6 +80,9 @@
 			packageProductDependencies = (
 				67E4FA6C2F9DDBC300A7DF95 /* FirebaseAnalytics */,
 				67E4FA6E2F9DDBC300A7DF95 /* FirebaseDatabase */,
+				67E4FA702F9DDBC300A7DF95 /* FirebaseAuth */,
+				676E07C42FCFD47C0030FD16 /* GoogleSignIn */,
+				676E07C62FCFD47C0030FD16 /* GoogleSignInSwift */,
 			);
 			productName = beer_cheers;
 			productReference = 67927ABA2F9DCDEC0046FC0F /* beer_cheers.app */;
@@ -105,6 +114,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				67E4FA6B2F9DDBC300A7DF95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				676E07C32FCFD47C0030FD16 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 67927ABB2F9DCDEC0046FC0F /* Products */;
@@ -263,11 +273,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = beer_cheers/beer_cheers.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K3BSAX58ZG;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "beer-cheers-Info.plist";
 				INFOPLIST_KEY_NSMotionUsageDescription = "左手のひらへの「乾杯」衝撃を検知するため、モーションデータを使用します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -296,11 +308,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = beer_cheers/beer_cheers.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K3BSAX58ZG;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "beer-cheers-Info.plist";
 				INFOPLIST_KEY_NSMotionUsageDescription = "左手のひらへの「乾杯」衝撃を検知するため、モーションデータを使用します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -348,6 +362,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		676E07C32FCFD47C0030FD16 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.1.0;
+			};
+		};
 		67E4FA6B2F9DDBC300A7DF95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -359,6 +381,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		676E07C42FCFD47C0030FD16 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 676E07C32FCFD47C0030FD16 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		676E07C62FCFD47C0030FD16 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 676E07C32FCFD47C0030FD16 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
 		67E4FA6C2F9DDBC300A7DF95 /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 67E4FA6B2F9DDBC300A7DF95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
@@ -368,6 +400,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 67E4FA6B2F9DDBC300A7DF95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseDatabase;
+		};
+		67E4FA702F9DDBC300A7DF95 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 67E4FA6B2F9DDBC300A7DF95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
