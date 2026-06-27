@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+/// アカウント画面の文字色（透明ガラス上で読みやすい黒系）
+enum AccountContentStyle {
+    static let primary = Color.black
+    static let secondary = Color.black.opacity(0.62)
+    static let error = Color(red: 0.55, green: 0.12, blue: 0.08)
+}
+
 struct SectionTitle: View {
     let text: String
     let systemImage: String
@@ -14,35 +21,11 @@ struct SectionTitle: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: systemImage)
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AccountContentStyle.secondary)
             Text(text)
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(AccountContentStyle.primary)
             Spacer(minLength: 0)
-        }
-    }
-}
-
-struct GlassFieldBackground: View {
-    var cornerRadius: CGFloat = 12
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        ZStack {
-            shape.fill(Color.black.opacity(0.35))
-            Group {
-                if #available(iOS 26.0, *) {
-                    shape
-                        .fill(.clear)
-                        .glassEffect(.regular, in: shape)
-                } else {
-                    shape
-                        .fill(.white.opacity(0.14))
-                        .overlay(
-                            shape.stroke(.white.opacity(0.28), lineWidth: 1)
-                        )
-                }
-            }
         }
     }
 }
