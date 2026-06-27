@@ -2,8 +2,7 @@
 //  AccountView.swift
 //  beer_cheers
 //
-//  アカウント画面のルート。プロフィール / ルーム / 認証 / アプリ情報のセクションを束ねる。
-//  背景は乾杯画面と同じ AppBackground を敷き、Liquid Glass に映えるように透過させる。
+//  アカウント画面のルート（これから一緒に実装します）
 //
 
 import SwiftUI
@@ -12,10 +11,10 @@ struct AccountView: View {
     @Bindable var viewModel: AccountViewModel
 
     var body: some View {
-        ZStack {
+        ZStack{
             AppBackground()
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 18){
                     AccountHeaderView(profile: viewModel.profile)
                         .padding(.top, 8)
                     ProfileSection(viewModel: viewModel)
@@ -23,12 +22,21 @@ struct AccountView: View {
                     AuthSection(viewModel: viewModel)
                     AboutSection()
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
             }
+            .contentMargins(
+                .bottom,
+                TabContentLayout.floatingTabBarClearance,
+                for: .scrollContent
+            )
+            .padding(.horizontal, 16)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("アカウント")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.light, for: .navigationBar)
+        .onAppear {
+            viewModel.refreshAuthState()
+        }
     }
 }
 
