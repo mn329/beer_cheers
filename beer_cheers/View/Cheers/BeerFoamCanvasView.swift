@@ -24,7 +24,6 @@ struct BeerFoamCanvasView: View {
     }
 
     var body: some View {
-        // 80Hz × 200 粒の毎フレーム Canvas 描画は CPU/GPU 負荷が高く、実機＋デバッグ接続時に特に重くなりやすい
         TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { timeline in
             // birth と timeline.date のわずかな逆転で負になると全泡が描画されないため下限を張る
             let elapsed = max(0, timeline.date.timeIntervalSince(birth))

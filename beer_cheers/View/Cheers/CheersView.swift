@@ -48,7 +48,10 @@ struct CheersView: View {
                     sensorStatusFooter
                 }
                 .frame(width: w, height: h)
-                .padding(.bottom, BeerLayout.footerBottomPadding)
+                .padding(
+                    .bottom,
+                    BeerLayout.footerBottomPadding + TabContentLayout.floatingTabBarClearance
+                )
 
                 cheersCaptionOverlay
             }
@@ -106,7 +109,7 @@ struct CheersView: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .padding(.horizontal, 16)
+        .padding()
     }
 }
 
