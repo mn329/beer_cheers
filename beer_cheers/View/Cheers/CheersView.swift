@@ -32,10 +32,10 @@ struct CheersView: View {
                 AppBackground()
 
                 BeerFoamCanvasView(
-                    burstID: viewModel.foamBurstID,
-                    birth: viewModel.foamBirthdate,
+                    burstID: viewModel.effects.foamBurstID,
+                    birth: viewModel.effects.foamBirthdate,
                     foamOriginYFactor: BeerLayout.beerCenterYFactor,
-                    buds: viewModel.foamBuds
+                    buds: viewModel.effects.foamBuds
                 )
                 .frame(width: w, height: h)
                 .allowsHitTesting(false)
@@ -70,9 +70,9 @@ struct CheersView: View {
         Text("🍺")
             .font(.system(size: BeerLayout.beerEmojiSize))
             .shadow(color: .black.opacity(0.25), radius: 8, y: 10)
-            .scaleEffect(viewModel.mugScale)
-            .rotationEffect(.degrees(viewModel.mugRotationDegrees), anchor: .bottom)
-            .offset(y: viewModel.mugOffsetY)
+            .scaleEffect(viewModel.effects.mugScale)
+            .rotationEffect(.degrees(viewModel.effects.mugRotationDegrees), anchor: .bottom)
+            .offset(y: viewModel.effects.mugOffsetY)
     }
 
     private var cheersCaptionOverlay: some View {
@@ -82,12 +82,12 @@ struct CheersView: View {
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.55), radius: 0, y: 1)
                 .shadow(color: .black.opacity(0.4), radius: 14, y: 5)
-                .opacity(viewModel.cheersCaptionOpacity)
+                .opacity(viewModel.effects.cheersCaptionOpacity)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 11)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(Color.black.opacity(0.28 * viewModel.cheersCaptionOpacity))
+                        .fill(Color.black.opacity(0.28 * viewModel.effects.cheersCaptionOpacity))
                 )
                 .padding(.top, BeerLayout.cheersCaptionTopPadding)
             Spacer()
