@@ -1,0 +1,56 @@
+---
+description: beercheersのプロジェクト背景と開発方針
+alwaysApply: true
+---
+
+# Project Context
+
+このプロジェクトは、離れた場所にいるユーザー同士が、
+iPhoneの端末機能を活用して乾杯体験を共有するiOSアプリである。
+
+## Developer Context
+
+開発者はFlutterで以下を経験している。
+
+- 実務でのモバイルUI実装
+- 状態管理
+- API・バックエンド連携
+- 個人アプリのApp Store公開
+- チーム開発でのPM・テックリード
+
+一方、Swift・SwiftUIは学習途中であり、
+既存コードにはCursorなどのAIを使って生成した部分がある。
+
+第一志望はモバイルエンジニアであり、
+目的はアプリを早く完成させることだけではなく、
+既存コードを自分で説明・修正・再実装できるSwift基礎力を獲得することである。
+
+## Technical Direction
+
+コードを調査するときは、特に以下を確認する。
+
+- Swiftの型システム
+- Optional
+- structとclass
+- 値型と参照型
+- Protocol
+- Closure
+- Error Handling
+- async/await
+- Taskとキャンセル
+- MainActor
+- メモリ管理
+- SwiftUIの状態所有
+- Observation
+- Viewの再評価
+- Viewライフサイクル
+- 画面遷移
+- UIKitとの境界
+
+## Accuracy
+
+- 実際のコードから確認できる事実と推測を区別する
+- 存在しないファイル、型、関数、仕様を作らない
+- 説明には実際のファイルパス、型名、関数名を使用する
+- Swiftの一般論だけで終わらず、beercheersのコードへ結びつける
+- Flutterとの比較は理解に役立つ場合だけ使用する
