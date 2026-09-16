@@ -2,7 +2,7 @@
 //  AppEntryView.swift
 //  beer_cheers
 //
-//  起動時に泡パーティクルをバックグラウンドで生成してから RootTabView に切り替えるエントリ。
+//  起動時に泡パーティクルを生成するあいだ、乾杯ループのローディングを表示してから RootTabView に切り替える。
 //
 
 import SwiftUI
@@ -16,7 +16,7 @@ struct AppEntryView: View {
             if assetsReady {
                 RootTabView(cheersViewModel: viewModel)
             } else {
-                warmupPlaceholder
+                LaunchLoadingView()
             }
         }
         .task {
@@ -29,16 +29,6 @@ struct AppEntryView: View {
                 viewModel.seedFoamBudPool(buds)
                 assetsReady = true
             }
-        }
-    }
-
-    private var warmupPlaceholder: some View {
-        ZStack {
-            AppBackground()
-            ProgressView()
-                .progressViewStyle(.circular)
-                .tint(.white)
-                .scaleEffect(1.15)
         }
     }
 }

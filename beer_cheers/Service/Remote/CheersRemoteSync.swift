@@ -7,7 +7,7 @@
 //
 //  ・観測：trigger が変化したら `onRemoteCheers` を呼ぶ。初回はベースライン確定のみ。
 //  ・送信：ローカル衝撃時に trigger を更新し、自分の書き込みエコーは抑制する。
-//  ・部屋切替：start 時に roomID を渡す（アカウント画面からの切替を想定）。
+//  ・部屋切替：start 時に roomID を渡す（ルームタブからの切替を想定）。
 //  ・同一判定は JSON 文字列ではなく id + 正規化 ts（コンソールの Int/Double 差・丸めに強い）。
 //
 
@@ -16,7 +16,7 @@ import Foundation
 
 @MainActor
 final class CheersRemoteSync {
-    /// 既定の部屋 ID（アカウント画面実装前の互換用）
+    /// 互換用の旧既定名。新規起動では使わず、ゲスト用ランダム ID を割り当てる。
     static let defaultRoomID = "test_room"
 
     /// ローカル衝突からの `setValue` スパム防止クールダウン（秒）

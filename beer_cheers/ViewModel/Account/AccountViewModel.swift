@@ -14,13 +14,10 @@ import FirebaseAuth
 final class AccountViewModel {
 
     var profile: UserAccountProfile
-    var roomID: String
-    var onRoomChange: ((String) -> Void)?
 
     private enum DefaultsKey {
         static let displayName = "account.profile.displayName"
         static let avatarEmoji = "account.profile.avatarEmoji"
-        static let roomID = "account.roomID"
     }
 
     // 認証状態(private(set)でviewからの変更を禁止)
@@ -41,7 +38,6 @@ final class AccountViewModel {
         let avatar = defaults.string(forKey: DefaultsKey.avatarEmoji)
             ?? UserAccountProfile.default.avatarEmoji
         self.profile = UserAccountProfile(displayName: displayName, avatarEmoji: avatar)
-        self.roomID = defaults.string(forKey: DefaultsKey.roomID) ?? "test_room"
     }
 
     // MARK: - Profile
@@ -59,16 +55,6 @@ final class AccountViewModel {
         guard let first = candidate.first else { return }
         profile.avatarEmoji = String(first)
         UserDefaults.standard.set(profile.avatarEmoji, forKey: DefaultsKey.avatarEmoji)
-    }
-
-    // MARK: - Room
-
-    func commitRoomID() {
-        let trimmed = roomID.trimmingCharacters(in: .whitespacesAndNewlines)
-        let final = trimmed.isEmpty ? CheersRemoteSync.defaultRoomID : trimmed
-        roomID = final
-        UserDefaults.standard.set(final, forKey: DefaultsKey.roomID)
-        onRoomChange?(final)
     }
 
     // MARK: - Authentication

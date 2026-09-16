@@ -3,7 +3,7 @@
 //  beer_cheers
 //
 //  アカウント画面のルート。
-//  プロフィール・ルーム・認証・アプリ情報セクションを束ねる。
+//  プロフィール・認証・アプリ情報セクションを束ねる。
 //
 
 import SwiftUI
@@ -19,7 +19,6 @@ struct AccountView: View {
                     AccountHeaderView(profile: viewModel.profile)
                         .padding(.top, 8)
                     ProfileSection(viewModel: viewModel)
-                    RoomSection(viewModel: viewModel)
                     AuthSection(viewModel: viewModel)
                     AboutSection()
                 }

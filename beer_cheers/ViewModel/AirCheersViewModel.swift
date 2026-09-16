@@ -60,6 +60,7 @@ final class AirCheersViewModel {
     func startMonitoring() {
         audio.activate()
         haptics.prepare()
+        startWatchConnectivity()
         motionDetector.start { [weak self] in
             self?.handleLocalImpact()
         }
@@ -98,7 +99,20 @@ final class AirCheersViewModel {
 
     // MARK: - Impact handling
 
+    private func startWatchConnectivity() {
+        CheersPhoneConnectivity.shared.onCheersFromWatch = { [weak self] in
+            self?.handleWatchCheers()
+        }
+        CheersPhoneConnectivity.shared.activate()
+    }
+
     private func handleLocalImpact() {
+        triggerCheers()
+        remote.publishLocalCheers()
+    }
+
+    /// Watch からの乾杯。演出 + 同一ルームへのリモート同期。
+    private func handleWatchCheers() {
         triggerCheers()
         remote.publishLocalCheers()
     }
