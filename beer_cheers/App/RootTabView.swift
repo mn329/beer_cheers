@@ -24,25 +24,36 @@ struct RootTabView: View {
     }
 
     var body: some View {
-        TabView(selection: $selection) {
-            Tab("乾杯", systemImage: "wineglass.fill", value: TabID.cheers) {
-                CheersView(viewModel: cheersViewModel)
-                    .extendsUnderFloatingTabBar()
-            }
-
-            Tab("ルーム", systemImage: "person.2.fill", value: TabID.room) {
-                RoomView(viewModel: roomViewModel)
-                    .extendsUnderFloatingTabBar()
-            }
-
-            Tab("アカウント", systemImage: "person.crop.circle", value: TabID.account) {
-                NavigationStack {
-                    AccountView(viewModel: accountViewModel)
+        ZStack(alignment: .top) {
+            TabView(selection: $selection) {
+                Tab("乾杯", systemImage: "wineglass.fill", value: TabID.cheers) {
+                    CheersView(viewModel: cheersViewModel)
+                        .extendsUnderFloatingTabBar()
                 }
-                .extendsUnderFloatingTabBar()
+
+                Tab("ルーム", systemImage: "person.2.fill", value: TabID.room) {
+                    RoomView(viewModel: roomViewModel)
+                        .extendsUnderFloatingTabBar()
+                }
+
+                Tab("アカウント", systemImage: "person.crop.circle", value: TabID.account) {
+                    NavigationStack {
+                        AccountView(viewModel: accountViewModel)
+                    }
+                    .extendsUnderFloatingTabBar()
+                }
+            }
+            .toolbarBackgroundVisibility(.hidden, for: .tabBar)
+
+            if let message = cheersViewModel.remoteSyncErrorMessage {
+                remoteSyncErrorBanner(message)
+                    .safeAreaPadding(.top, 8)
+                    .padding(.horizontal, 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(1)
             }
         }
-        .toolbarBackgroundVisibility(.hidden, for: .tabBar)
+        .animation(.easeInOut(duration: 0.25), value: cheersViewModel.remoteSyncErrorMessage)
         .onAppear {
             accountViewModel.startObservingAuthState()
             let cheersVM = cheersViewModel
@@ -56,11 +67,25 @@ struct RootTabView: View {
                 return (profile.displayName, profile.avatarEmoji)
             }
             roomViewModel.resumeMembershipIfNeeded()
-            // リモート乾杯の監視はタブに依存させない（アカウント表示中も Firebase の更新を受け取る）
-            DispatchQueue.main.async {
-                cheersViewModel.startRemoteTriggerListening()
-            }
+            // 同期で監視開始し、起動直後の振る操作で notInRoom バナーが出ないようにする
+            // （タブ非依存で Firebase 更新を受け取る）
+            cheersViewModel.startRemoteTriggerListening()
         }
+    }
+
+    private func remoteSyncErrorBanner(_ message: String) -> some View {
+        Text(message)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(AccountContentStyle.error.opacity(0.92))
+            )
+            .accessibilityLabel(message)
     }
 }
 
