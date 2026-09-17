@@ -24,12 +24,18 @@ final class AirCheersViewModel {
     /// 現在接続中のルーム ID（アカウント画面で切替可能）
     private(set) var roomID: String
 
+    /// リモート未達時のユーザー向けメッセージ（共通バナー用）。自動クリアされる。
+    private(set) var remoteSyncErrorMessage: String?
+
     // MARK: - Services
 
     private let motionDetector: MotionImpactDetector
     private let audio: ClinkAudioPlayer
     private let haptics: CheersHapticsPlayer
     private let remote: CheersRemoteSync
+
+    /// バナー自動クリアの世代。古い Task が新しいエラーを消さないようにする。
+    private var remoteErrorClearGeneration = 0
 
     // MARK: - Init
 
@@ -87,7 +93,7 @@ final class AirCheersViewModel {
     func switchRoom(to newRoomID: String) {
         let trimmed = newRoomID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != roomID else { return }
-        let wasListening = remote.currentRoomID != nil
+        let wasListening = remote.isListening
         if wasListening {
             stopRemoteTriggerListening()
         }
@@ -106,15 +112,42 @@ final class AirCheersViewModel {
         CheersPhoneConnectivity.shared.activate()
     }
 
+    /// ローカル演出を先に出し、その後リモートへ同期する（失敗しても演出は消さない）。
     private func handleLocalImpact() {
         triggerCheers()
-        remote.publishLocalCheers()
+        publishRemoteCheers()
     }
 
     /// Watch からの乾杯。演出 + 同一ルームへのリモート同期。
     private func handleWatchCheers() {
         triggerCheers()
-        remote.publishLocalCheers()
+        publishRemoteCheers()
+    }
+
+    private func publishRemoteCheers() {
+        if let immediateFailure = remote.publishLocalCheers(onFailure: { [weak self] failure in
+            self?.presentRemoteSyncFailure(failure)
+        }) {
+            // 監視開始前の一瞬の notInRoom はユーザー向けに出さない（ローカル演出は済んでいる）
+            if case .notInRoom = immediateFailure, !remote.isListening {
+                #if DEBUG
+                    print("[AirCheers] 監視未開始のため notInRoom バナーを抑制")
+                #endif
+                return
+            }
+            presentRemoteSyncFailure(immediateFailure)
+        }
+    }
+
+    private func presentRemoteSyncFailure(_ failure: CheersRemotePublishFailure) {
+        remoteSyncErrorMessage = failure.userMessage
+        remoteErrorClearGeneration &+= 1
+        let generation = remoteErrorClearGeneration
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard let self, self.remoteErrorClearGeneration == generation else { return }
+            self.remoteSyncErrorMessage = nil
+        }
     }
 
     private func triggerCheers() {
