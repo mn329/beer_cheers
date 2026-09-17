@@ -21,6 +21,7 @@ enum RoomService {
     }
 
     /// ルームを新規作成する。作成者がホストになる。
+    /// 同名で meta だけ残った空室（メンバー0）は再利用のため先に削除する。
     static func createRoom(
         name: String,
         password: String?,
@@ -32,7 +33,11 @@ enum RoomService {
 
         let snapshot = try await getSnapshot(ref)
         if snapshot.exists() {
-            throw RoomServiceError.roomAlreadyExists
+            if try await isMembersEmpty(roomID: roomID) {
+                try await removeValue(roomReference(for: roomID))
+            } else {
+                throw RoomServiceError.roomAlreadyExists
+            }
         }
 
         let normalizedPassword = normalizedOptionalPassword(password)
@@ -136,6 +141,10 @@ enum RoomService {
         try ensureFirebaseConfigured()
         let safeRoom = try normalizeRoomID(roomID)
         try await removeValue(memberReference(roomID: safeRoom, memberID: memberID))
+        // 最後のメンバーがいなくなったら部屋ごと消す（幽霊ルーム対策）
+        if try await isMembersEmpty(roomID: safeRoom) {
+            try await removeValue(roomReference(for: safeRoom))
+        }
     }
 
     /// `members` 配下を監視する。戻り値のクロージャで停止する。
@@ -227,6 +236,12 @@ enum RoomService {
 
     private static func memberReference(roomID: String, memberID: String) -> DatabaseReference {
         membersReference(for: roomID).child(memberID)
+    }
+
+    /// `members` が無い、または子が0なら空室とみなす。
+    private static func isMembersEmpty(roomID: String) async throws -> Bool {
+        let snapshot = try await getSnapshot(membersReference(for: roomID))
+        return !snapshot.exists() || snapshot.childrenCount == 0
     }
 
     private static func ensureFirebaseConfigured() throws {
@@ -325,7 +340,8 @@ enum RoomService {
         }
     }
 
-    private static func mapDatabaseError(_ error: Error) -> Error {
+    /// Firebase コールバック（nonisolated）からも呼べるよう、MainActor に紐づけない。
+    private nonisolated static func mapDatabaseError(_ error: Error) -> Error {
         let text = error.localizedDescription.lowercased()
         if text.contains("permission") || text.contains("permission_denied") {
             return RoomServiceError.permissionDenied
