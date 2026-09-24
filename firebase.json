@@ -1,0 +1,38 @@
+{
+  "hosting": {
+    "site": "beercheers",
+    "public": "web/invite",
+    "ignore": [
+      "firebase.json",
+      "**/node_modules/**",
+      "**/*.example.js",
+      "**/README.md"
+    ],
+    "headers": [
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(html|js|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/join/**",
+        "destination": "/join.html"
+      }
+    ]
+  }
+}
