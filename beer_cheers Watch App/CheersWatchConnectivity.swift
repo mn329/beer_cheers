@@ -11,12 +11,12 @@ import WatchConnectivity
 final class CheersWatchConnectivity: NSObject, WCSessionDelegate {
     static let shared = CheersWatchConnectivity()
 
-    static let actionKey = "action"
-    static let cheersAction = "cheers"
-
+    private let lock = NSLock()
     private var didActivate = false
 
     func activate() {
+        lock.lock()
+        defer { lock.unlock() }
         guard WCSession.isSupported(), !didActivate else { return }
         didActivate = true
         let session = WCSession.default
@@ -25,16 +25,16 @@ final class CheersWatchConnectivity: NSObject, WCSessionDelegate {
     }
 
     func sendCheers() {
+        activate()
         guard WCSession.isSupported() else { return }
-        let session = WCSession.default
-        guard session.activationState == .activated else { return }
 
-        let payload = [Self.actionKey: Self.cheersAction]
-        if session.isReachable {
-            session.sendMessage(payload, replyHandler: nil) { error in
-                #if DEBUG
-                    print("[WatchCheers] sendMessage failed: \(error.localizedDescription)")
-                #endif
+        let session = WCSession.default
+        let payload = WatchCheersPayload.makeCheersMessage()
+
+        // スリープ中は isReachable になりにくい。即時送信できるときだけ sendMessage、
+        // 失敗時／非到達時は transferUserInfo に一本化する（二重送信しない）。
+        if session.activationState == .activated, session.isReachable {
+            session.sendMessage(payload, replyHandler: nil) { _ in
                 session.transferUserInfo(payload)
             }
         } else {
@@ -42,9 +42,7 @@ final class CheersWatchConnectivity: NSObject, WCSessionDelegate {
         }
     }
 
-    // MARK: - WCSessionDelegate
-
-    func session(
+    nonisolated func session(
         _ session: WCSession,
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?

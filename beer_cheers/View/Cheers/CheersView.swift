@@ -35,7 +35,8 @@ struct CheersView: View {
                     burstID: viewModel.effects.foamBurstID,
                     birth: viewModel.effects.foamBirthdate,
                     foamOriginYFactor: BeerLayout.beerCenterYFactor,
-                    buds: viewModel.effects.foamBuds
+                    buds: viewModel.effects.foamBuds,
+                    isAnimating: viewModel.effects.isFoamAnimating
                 )
                 .frame(width: w, height: h)
                 .allowsHitTesting(false)
@@ -46,12 +47,12 @@ struct CheersView: View {
                 VStack {
                     Spacer(minLength: 0)
                     sensorStatusFooter
+                        .padding(
+                            .bottom,
+                            BeerLayout.footerBottomPadding + TabContentLayout.floatingTabBarClearance
+                        )
                 }
                 .frame(width: w, height: h)
-                .padding(
-                    .bottom,
-                    BeerLayout.footerBottomPadding + TabContentLayout.floatingTabBarClearance
-                )
 
                 cheersCaptionOverlay
             }

@@ -3,6 +3,7 @@
 //  beer_cheers
 //
 //  Apple Watch からの乾杯通知を受け取り、iPhone 側の乾杯処理へ渡す。
+//  ペイロードキーは Watch 側 WatchCheersPayload と一致させること。
 //
 
 import Foundation
@@ -12,10 +13,17 @@ import WatchConnectivity
 final class CheersPhoneConnectivity: NSObject, WCSessionDelegate {
     static let shared = CheersPhoneConnectivity()
 
-    /// Watch から乾杯が届いたときのコールバック。
+    /// Watch 側 WatchCheersPayload と同じキー。
+    private enum Payload {
+        nonisolated static let actionKey = "action"
+        nonisolated static let cheersAction = "cheers"
+    }
+
     var onCheersFromWatch: (() -> Void)?
 
     private var didActivate = false
+    private var lastHandledCheersUptime: TimeInterval = 0
+    private let cheersDebounce: TimeInterval = 0.45
 
     func activate() {
         guard WCSession.isSupported(), !didActivate else { return }
@@ -54,9 +62,16 @@ final class CheersPhoneConnectivity: NSObject, WCSessionDelegate {
     }
 
     private nonisolated func handleIncoming(_ message: [String: Any]) {
-        guard let action = message["action"] as? String, action == "cheers" else { return }
+        guard let action = message[Payload.actionKey] as? String,
+              action == Payload.cheersAction
+        else { return }
+
         Task { @MainActor in
-            CheersPhoneConnectivity.shared.onCheersFromWatch?()
+            let bridge = CheersPhoneConnectivity.shared
+            let now = ProcessInfo.processInfo.systemUptime
+            guard now - bridge.lastHandledCheersUptime >= bridge.cheersDebounce else { return }
+            bridge.lastHandledCheersUptime = now
+            bridge.onCheersFromWatch?()
         }
     }
 }

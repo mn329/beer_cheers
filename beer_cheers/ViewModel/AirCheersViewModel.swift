@@ -60,17 +60,26 @@ final class AirCheersViewModel {
     func startMonitoring() {
         audio.activate()
         haptics.prepare()
-        startWatchConnectivity()
+        ensureWatchConnectivity()
         motionDetector.start { [weak self] in
             self?.handleLocalImpact()
         }
     }
 
     func stopMonitoring() {
+        // Watch 連携はタブを離れても維持する（ルーム画面中の Watch 乾杯のため）
         motionDetector.stop()
         audio.deactivate()
         haptics.cancelOngoing()
         effects.reset()
+    }
+
+    /// アプリ起動〜本体表示で一度呼べばよい。stopMonitoring では切らない。
+    func ensureWatchConnectivity() {
+        CheersPhoneConnectivity.shared.onCheersFromWatch = { [weak self] in
+            self?.handleWatchCheers()
+        }
+        CheersPhoneConnectivity.shared.activate()
     }
 
     func startRemoteTriggerListening() {
@@ -99,20 +108,16 @@ final class AirCheersViewModel {
 
     // MARK: - Impact handling
 
-    private func startWatchConnectivity() {
-        CheersPhoneConnectivity.shared.onCheersFromWatch = { [weak self] in
-            self?.handleWatchCheers()
-        }
-        CheersPhoneConnectivity.shared.activate()
-    }
-
     private func handleLocalImpact() {
-        triggerCheers()
-        remote.publishLocalCheers()
+        playCheersLocallyAndPublish()
     }
 
     /// Watch からの乾杯。演出 + 同一ルームへのリモート同期。
     private func handleWatchCheers() {
+        playCheersLocallyAndPublish()
+    }
+
+    private func playCheersLocallyAndPublish() {
         triggerCheers()
         remote.publishLocalCheers()
     }
