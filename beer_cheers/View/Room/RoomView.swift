@@ -15,7 +15,7 @@ struct RoomView: View {
     @State private var showMembersSheet = false
     @State private var hostTransferTarget: RoomMember?
 
-    private enum Field {
+    enum Field {
         case roomName
         case password
     }
@@ -27,7 +27,11 @@ struct RoomView: View {
                 ScrollView {
                     VStack(spacing: 18) {
                         currentRoomCard
-                        formCard
+                        RoomFormCard(
+                            viewModel: viewModel,
+                            focusedField: $focusedField,
+                            onJoinRequested: { showJoinConfirm = true }
+                        )
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -52,6 +56,38 @@ struct RoomView: View {
                 Button("キャンセル", role: .cancel) {}
             } message: {
                 Text("ルーム「\(viewModel.draftRoomName)」に参加しますか？")
+            }
+            .alert(
+                "ルームに参加",
+                isPresented: Binding(
+                    get: { viewModel.pendingInviteRoomID != nil },
+                    set: { if !$0 { viewModel.clearPendingInvite() } }
+                )
+            ) {
+                Button("参加する") {
+                    Task { await viewModel.joinViaInvite() }
+                }
+                Button("キャンセル", role: .cancel) {
+                    viewModel.cancelPendingInvite()
+                }
+            } message: {
+                if let roomID = viewModel.pendingInviteRoomID {
+                    Text("ルーム「\(roomID)」に参加しますか？")
+                }
+            }
+            .alert(
+                viewModel.inviteJoinFailureMessage ?? "",
+                isPresented: Binding(
+                    get: { viewModel.inviteJoinFailureMessage != nil },
+                    set: { if !$0 { viewModel.dismissInviteJoinFailure() } }
+                )
+            ) {
+                Button("再試行") {
+                    Task { await viewModel.retryInviteJoin() }
+                }
+                Button("閉じる", role: .cancel) {
+                    viewModel.dismissInviteJoinFailure()
+                }
             }
             .alert("ルームを閉じる", isPresented: $showCloseConfirm) {
                 Button(viewModel.isCurrentUserHost ? "解散する" : "閉じる", role: .destructive) {
@@ -152,6 +188,8 @@ struct RoomView: View {
                 }
 
                 membersSection
+
+                inviteShareSection
             }
 
             if viewModel.isOnGuestRoom, let status = viewModel.statusMessage {
@@ -159,9 +197,64 @@ struct RoomView: View {
                     .font(.footnote)
                     .foregroundStyle(AccountContentStyle.secondary)
             }
+
+            if viewModel.isOnGuestRoom, let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(AccountContentStyle.error)
+            }
         }
         .padding(16)
         .background(GlassCardBackground())
+    }
+
+    private var inviteShareSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("招待リンク")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AccountContentStyle.secondary)
+
+            HStack(spacing: 10) {
+                Button {
+                    viewModel.copyInviteLinkToPasteboard()
+                } label: {
+                    inviteActionLabel(title: "コピー", systemImage: "doc.on.doc")
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.isLoading)
+
+                if let shareText = viewModel.inviteShareText {
+                    ShareLink(item: shareText) {
+                        inviteActionLabel(title: "共有", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isLoading)
+                }
+            }
+            .opacity(viewModel.isLoading ? 0.55 : 1)
+
+            if !viewModel.isOnGuestRoom, let status = viewModel.statusMessage {
+                Text(status)
+                    .font(.footnote)
+                    .foregroundStyle(AccountContentStyle.secondary)
+            }
+        }
+    }
+
+    private func inviteActionLabel(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.black.opacity(0.85))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.92))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.55), lineWidth: 1)
+            )
     }
 
     private var hostDisplayName: String? {
@@ -306,7 +399,7 @@ struct RoomView: View {
             memberAvatar(member, size: 40, emojiSize: 22)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(member.displayName)
+                    Text(member.nickname)
                         .font(.body.weight(.medium))
                         .foregroundStyle(AccountContentStyle.primary)
                     if isLocal {
@@ -319,6 +412,11 @@ struct RoomView: View {
                                 Capsule().fill(Color.white.opacity(0.28))
                             )
                     }
+                }
+                if !member.username.isEmpty {
+                    Text("@\(member.username)")
+                        .font(.caption2)
+                        .foregroundStyle(AccountContentStyle.secondary)
                 }
                 if isHost {
                     Text("ホスト")
@@ -352,13 +450,12 @@ struct RoomView: View {
 
     private func memberAvatar(_ member: RoomMember, size: CGFloat, emojiSize: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
-            Text(member.avatarEmoji)
-                .font(.system(size: emojiSize))
-                .frame(width: size, height: size)
-                .background(
-                    Circle()
-                        .fill(Color.white.opacity(0.45))
-                )
+            ProfileAvatarView(
+                avatarURL: member.avatarURL,
+                avatarEmoji: member.avatarEmoji,
+                size: size,
+                emojiSize: emojiSize
+            )
             if viewModel.isHost(member) {
                 Image(systemName: "crown.fill")
                     .font(.system(size: max(10, size * 0.28)))
@@ -370,115 +467,11 @@ struct RoomView: View {
     }
 
     private func memberAccessibilityLabel(_ member: RoomMember) -> String {
-        var parts = [member.displayName]
+        var parts = [member.nickname]
+        if !member.username.isEmpty { parts.append(member.username) }
         if viewModel.isLocalMember(member) { parts.append("自分") }
         if viewModel.isHost(member) { parts.append("ホスト") }
         return parts.joined(separator: "、")
-    }
-
-    private var formCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionTitle(text: "作成・参加", systemImage: "person.2.fill")
-
-            Picker("モード", selection: $viewModel.mode) {
-                ForEach(RoomMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .disabled(viewModel.isLoading)
-
-            Text(modeHelpText)
-                .font(.footnote)
-                .foregroundStyle(AccountContentStyle.secondary)
-
-            labeledField(title: "ルーム名") {
-                TextField("例: weekend_cheers", text: $viewModel.draftRoomName)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .roomName)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .password }
-                    .disabled(viewModel.isLoading)
-            }
-
-            labeledField(title: "パスワード（任意）") {
-                SecureField("未設定可", text: $viewModel.draftPassword)
-                    .textContentType(.password)
-                    .focused($focusedField, equals: .password)
-                    .submitLabel(.done)
-                    .onSubmit { requestPrimaryAction() }
-                    .disabled(viewModel.isLoading)
-            }
-
-            Button {
-                focusedField = nil
-                requestPrimaryAction()
-            } label: {
-                HStack {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .tint(.black)
-                    }
-                    Text(viewModel.mode.actionTitle)
-                        .font(.subheadline.weight(.semibold))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.white.opacity(0.9))
-            .foregroundStyle(.black)
-            .disabled(viewModel.isLoading || viewModel.draftRoomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-            if let status = viewModel.statusMessage {
-                Text(status)
-                    .font(.footnote)
-                    .foregroundStyle(AccountContentStyle.secondary)
-            }
-
-            if let error = viewModel.errorMessage {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(AccountContentStyle.error)
-            }
-        }
-        .padding(16)
-        .background(GlassCardBackground())
-    }
-
-    private var modeHelpText: String {
-        switch viewModel.mode {
-        case .create:
-            "新しいルームを作ります。作成した人がホストになります。"
-        case .join:
-            "既存のルームに入ります。パスワード付きの場合のみ入力してください。"
-        }
-    }
-
-    private func requestPrimaryAction() {
-        switch viewModel.mode {
-        case .create:
-            Task { await viewModel.createRoom() }
-        case .join:
-            showJoinConfirm = true
-        }
-    }
-
-    private func labeledField<Content: View>(
-        title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.footnote)
-                .foregroundStyle(AccountContentStyle.secondary)
-            content()
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(GlassFieldBackground())
-                .foregroundStyle(AccountContentStyle.primary)
-        }
     }
 }
 

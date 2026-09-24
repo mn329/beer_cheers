@@ -1,23 +1,34 @@
 //
-//  RoomService.swift
+//  RoomRepository.swift
 //  beer_cheers
 //
-//  Realtime Database の `rooms/{roomID}/meta`・`members` を扱う（製品 MVP）。
+//  Realtime Database の `rooms/{roomID}/meta`・`members` を扱う Repository。
 //
 
 import FirebaseDatabase
 import Foundation
 
-enum RoomService {
+protocol RoomRepositorying: Sendable {
+    func createRoom(name: String, password: String?, hostMemberID: String) async throws -> String
+    func joinRoom(name: String, password: String?, passwordPolicy: RoomJoinPasswordPolicy) async throws -> String
+    func ensureHostIfNeeded(roomID: String, candidateMemberID: String) async throws
+    func transferHost(roomID: String, currentHostMemberID: String, newHostMemberID: String) async throws
+    func dissolveRoom(roomID: String) async throws
+    func upsertMember(
+        roomID: String,
+        memberID: String,
+        nickname: String,
+        username: String,
+        avatarURL: String?,
+        avatarEmoji: String
+    ) async throws
+    func leaveMember(roomID: String, memberID: String) async throws
+}
+
+enum RoomRepository {
     /// ルーム名を path 用 ID として正規化する。
     static func normalizeRoomID(_ raw: String) throws -> String {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { throw RoomServiceError.invalidRoomName }
-        let forbidden = CharacterSet(charactersIn: "/#$[]")
-        guard trimmed.rangeOfCharacter(from: forbidden) == nil else {
-            throw RoomServiceError.invalidRoomName
-        }
-        return trimmed
+        try RoomID.normalize(raw)
     }
 
     /// ルームを新規作成する。作成者がホストになる。
@@ -32,7 +43,7 @@ enum RoomService {
 
         let snapshot = try await getSnapshot(ref)
         if snapshot.exists() {
-            throw RoomServiceError.roomAlreadyExists
+            throw RoomRepositoryError.roomAlreadyExists
         }
 
         let normalizedPassword = normalizedOptionalPassword(password)
@@ -46,26 +57,42 @@ enum RoomService {
         return roomID
     }
 
-    /// 既存ルームに参加する。meta が無いレガシー部屋はパスワードなしなら参加可。
-    static func joinRoom(name: String, password: String?) async throws -> String {
+    /// 既存ルームに参加する。
+    /// - `requireMatch`: meta 無しレガシー部屋はパスワードなしなら参加可。パスワード付きは照合。
+    /// - `inviteURL`: meta 必須。パスワードは見ない。
+    static func joinRoom(
+        name: String,
+        password: String?,
+        passwordPolicy: RoomJoinPasswordPolicy = .requireMatch
+    ) async throws -> String {
         try ensureFirebaseConfigured()
         let roomID = try normalizeRoomID(name)
         let ref = metaReference(for: roomID)
 
         let snapshot = try await getSnapshot(ref)
         if !snapshot.exists() {
-            let entered = (password ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            guard entered.isEmpty else { throw RoomServiceError.roomNotFound }
-            return roomID
+            switch passwordPolicy {
+            case .inviteURL:
+                throw RoomRepositoryError.roomNotFound
+            case .requireMatch:
+                let entered = (password ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard entered.isEmpty else { throw RoomRepositoryError.roomNotFound }
+                return roomID
+            }
         }
 
         guard let meta = RoomMeta.fromFirebaseValue(snapshot.value, fallbackName: roomID) else {
-            throw RoomServiceError.roomNotFound
+            throw RoomRepositoryError.roomNotFound
         }
-        guard meta.matches(password: password) else {
-            throw RoomServiceError.wrongPassword
+        switch passwordPolicy {
+        case .inviteURL:
+            return roomID
+        case .requireMatch:
+            guard meta.matches(password: password) else {
+                throw RoomRepositoryError.wrongPassword
+            }
+            return roomID
         }
-        return roomID
     }
 
     /// ホスト不在の旧ルームなら、候補者をホストに設定する。
@@ -94,13 +121,13 @@ enum RoomService {
         guard snapshot.exists(),
               var meta = RoomMeta.fromFirebaseValue(snapshot.value, fallbackName: safeRoom)
         else {
-            throw RoomServiceError.roomNotFound
+            throw RoomRepositoryError.roomNotFound
         }
         guard meta.hostMemberID == currentHostMemberID else {
-            throw RoomServiceError.notHost
+            throw RoomRepositoryError.notHost
         }
         guard newHostMemberID != currentHostMemberID, !newHostMemberID.isEmpty else {
-            throw RoomServiceError.invalidHostCandidate
+            throw RoomRepositoryError.invalidHostCandidate
         }
         meta.hostMemberID = newHostMemberID
         try await setValue(ref, meta.asFirebaseValue())
@@ -118,14 +145,18 @@ enum RoomService {
     static func upsertMember(
         roomID: String,
         memberID: String,
-        displayName: String,
+        nickname: String,
+        username: String,
+        avatarURL: String?,
         avatarEmoji: String
     ) async throws {
         try ensureFirebaseConfigured()
         let safeRoom = try normalizeRoomID(roomID)
         let member = RoomMember(
             id: memberID,
-            displayName: displayName,
+            nickname: nickname,
+            username: username,
+            avatarURL: avatarURL,
             avatarEmoji: avatarEmoji,
             joinedAt: Date().timeIntervalSince1970
         )
@@ -231,7 +262,7 @@ enum RoomService {
 
     private static func ensureFirebaseConfigured() throws {
         guard FirebaseBootstrap.isConfigured else {
-            throw RoomServiceError.firebaseNotConfigured
+            throw RoomRepositoryError.firebaseNotConfigured
         }
     }
 
@@ -241,102 +272,55 @@ enum RoomService {
     }
 
     private static func getSnapshot(_ ref: DatabaseReference) async throws -> DataSnapshot {
-        Database.database().goOnline()
-
         do {
-            return try await withCheckedThrowingContinuation { continuation in
-                final class Once: @unchecked Sendable {
-                    private let lock = NSLock()
-                    private var finished = false
-
-                    func resume(_ body: () -> Void) {
-                        lock.lock()
-                        defer { lock.unlock() }
-                        guard !finished else { return }
-                        finished = true
-                        body()
-                    }
-                }
-
-                let once = Once()
-                ref.observeSingleEvent(
-                    of: .value,
-                    with: { snapshot in
-                        once.resume {
-                            continuation.resume(returning: snapshot)
-                        }
-                    },
-                    withCancel: { error in
-                        once.resume {
-                            continuation.resume(throwing: mapDatabaseError(error))
-                        }
-                    }
-                )
-
-                Task {
-                    try? await Task.sleep(for: .seconds(12))
-                    once.resume {
-                        continuation.resume(throwing: RoomServiceError.networkUnavailable)
-                    }
-                }
-            }
-        } catch let error as RoomServiceError {
+            return try await RealtimeDatabaseClient.getSnapshot(
+                ref,
+                timeout: .seconds(12),
+                timeoutError: RoomRepositoryError.networkUnavailable
+            )
+        } catch let error as RoomRepositoryError {
             throw error
         } catch {
-            throw mapDatabaseError(error)
+            throw mapRoomDatabaseError(error)
         }
     }
 
     private static func setValue(_ ref: DatabaseReference, _ value: Any) async throws {
-        Database.database().goOnline()
         do {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                ref.setValue(value) { error, _ in
-                    if let error {
-                        continuation.resume(throwing: mapDatabaseError(error))
-                    } else {
-                        continuation.resume(returning: ())
-                    }
-                }
-            }
-        } catch let error as RoomServiceError {
+            try await RealtimeDatabaseClient.setValue(ref, value)
+        } catch let error as RoomRepositoryError {
             throw error
         } catch {
-            throw mapDatabaseError(error)
+            throw mapRoomDatabaseError(error)
         }
     }
 
     private static func removeValue(_ ref: DatabaseReference) async throws {
-        Database.database().goOnline()
         do {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                ref.removeValue { error, _ in
-                    if let error {
-                        continuation.resume(throwing: mapDatabaseError(error))
-                    } else {
-                        continuation.resume(returning: ())
-                    }
-                }
-            }
-        } catch let error as RoomServiceError {
+            try await RealtimeDatabaseClient.removeValue(ref)
+        } catch let error as RoomRepositoryError {
             throw error
         } catch {
-            throw mapDatabaseError(error)
+            throw mapRoomDatabaseError(error)
         }
     }
+}
 
-    private static func mapDatabaseError(_ error: Error) -> Error {
-        let text = error.localizedDescription.lowercased()
-        if text.contains("permission") || text.contains("permission_denied") {
-            return RoomServiceError.permissionDenied
-        }
-        if text.contains("offline")
-            || text.contains("network")
-            || text.contains("timeout")
-            || text.contains("timed out")
-        {
-            return RoomServiceError.networkUnavailable
-        }
-        return error
+/// 移行期間用の別名（既存呼び出しを段階的に置換するため）。
+typealias RoomService = RoomRepository
+
+/// Firebase コールバックからも呼べるよう、ファイルスコープの nonisolated にする。
+nonisolated private func mapRoomDatabaseError(_ error: Error) -> Error {
+    let text = error.localizedDescription.lowercased()
+    if text.contains("permission") || text.contains("permission_denied") {
+        return RoomRepositoryError.permissionDenied
     }
+    if text.contains("offline")
+        || text.contains("network")
+        || text.contains("timeout")
+        || text.contains("timed out")
+    {
+        return RoomRepositoryError.networkUnavailable
+    }
+    return error
 }

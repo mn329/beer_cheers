@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import UIKit
 
 @MainActor
 @Observable
@@ -16,6 +17,12 @@ final class RoomViewModel {
     var draftPassword: String = ""
     var errorMessage: String?
     var statusMessage: String?
+    /// URL 招待の参加確認ダイアログ用。nil で非表示。
+    var pendingInviteRoomID: String?
+    /// 招待参加失敗時のアラート文言。nil で非表示。
+    var inviteJoinFailureMessage: String?
+    /// アラート閉じ時に pending が消えても参加処理が止まらないよう控える。
+    private var inviteJoinRoomID: String?
     private(set) var isLoading = false
     private(set) var isMembersLoading = false
     private(set) var currentRoomID: String
@@ -26,8 +33,8 @@ final class RoomViewModel {
     var onRoomChange: ((String) -> Void)?
 
     /// メンバー登録に使う表示名と絵文字（アカウント画面のプロフィールから供給）。
-    var memberProfileProvider: () -> (displayName: String, avatarEmoji: String) = {
-        (UserAccountProfile.default.displayName, UserAccountProfile.default.avatarEmoji)
+    var memberProfileProvider: () -> UserAccountProfile = {
+        UserAccountProfile.default
     }
 
     private var stopMembersListening: (() -> Void)?
@@ -40,66 +47,13 @@ final class RoomViewModel {
     /// Preview 用。true のとき Firebase 同期を行わない。
     private var usesRemoteSync = true
 
-    private enum DefaultsKey {
-        static let currentRoomID = "room.currentID"
-        static let legacyRoomID = "account.roomID"
-        static let memberID = "room.memberID"
-    }
-
     init() {
-        let defaults = UserDefaults.standard
-        memberID = Self.stableMemberID(defaults: defaults)
-
-        if let saved = defaults.string(forKey: DefaultsKey.currentRoomID), !saved.isEmpty {
-            currentRoomID = Self.resolvedRoomID(saved, defaults: defaults)
-        } else if let legacy = defaults.string(forKey: DefaultsKey.legacyRoomID), !legacy.isEmpty {
-            currentRoomID = Self.resolvedRoomID(legacy, defaults: defaults)
-        } else {
-            currentRoomID = Self.assignGuestRoomID(defaults: defaults)
-        }
-        draftRoomName = Self.isGuestRoomID(currentRoomID) ? "" : currentRoomID
+        memberID = RoomSessionStore.stableMemberID()
+        currentRoomID = RoomSessionStore.loadCurrentRoomID()
+        draftRoomName = RoomSessionStore.isGuestRoomID(currentRoomID) ? "" : currentRoomID
     }
 
-    private static func resolvedRoomID(_ candidate: String, defaults: UserDefaults) -> String {
-        if candidate == CheersRemoteSync.defaultRoomID {
-            return assignGuestRoomID(defaults: defaults)
-        }
-        defaults.set(candidate, forKey: DefaultsKey.currentRoomID)
-        return candidate
-    }
-
-    private static func assignGuestRoomID(defaults: UserDefaults) -> String {
-        let id = makeGuestRoomID()
-        defaults.set(id, forKey: DefaultsKey.currentRoomID)
-        return id
-    }
-
-    private static func makeGuestRoomID() -> String {
-        let token = UUID().uuidString
-            .replacingOccurrences(of: "-", with: "")
-            .prefix(10)
-            .lowercased()
-        return "guest_\(token)"
-    }
-
-    private static func isGuestRoomID(_ roomID: String) -> Bool {
-        roomID.hasPrefix("guest_")
-    }
-
-    private static func stableMemberID(defaults: UserDefaults) -> String {
-        if let saved = defaults.string(forKey: DefaultsKey.memberID), !saved.isEmpty {
-            return saved
-        }
-        let token = UUID().uuidString
-            .replacingOccurrences(of: "-", with: "")
-            .prefix(12)
-            .lowercased()
-        let id = "m_\(token)"
-        defaults.set(id, forKey: DefaultsKey.memberID)
-        return id
-    }
-
-    var isOnGuestRoom: Bool { Self.isGuestRoomID(currentRoomID) }
+    var isOnGuestRoom: Bool { RoomSessionStore.isGuestRoomID(currentRoomID) }
 
     var isCurrentUserHost: Bool {
         guard let hostMemberID else { return false }
@@ -176,18 +130,94 @@ final class RoomViewModel {
         isLeavingIntentionally = false
     }
 
+    func joinRoom() async {
+        await submitCreateOrJoin(isCreate: false, passwordPolicy: .requireMatch)
+        if errorMessage == nil {
+            statusMessage = "ルーム「\(currentRoomID)」に参加しました。"
+        }
+    }
+
     func createRoom() async {
-        await submitCreateOrJoin(isCreate: true)
+        await submitCreateOrJoin(isCreate: true, passwordPolicy: .requireMatch)
         if errorMessage == nil {
             statusMessage = "ルーム「\(currentRoomID)」を作成して接続しました。"
         }
     }
 
-    func joinRoom() async {
-        await submitCreateOrJoin(isCreate: false)
-        if errorMessage == nil {
-            statusMessage = "ルーム「\(currentRoomID)」に参加しました。"
+    /// Deep Link / Universal Link から招待を提示する。
+    func presentInvite(roomID: String) {
+        let trimmed = roomID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        do {
+            let safe = try RoomID.normalize(trimmed)
+            if !isOnGuestRoom, currentRoomID == safe {
+                pendingInviteRoomID = nil
+                inviteJoinRoomID = nil
+                errorMessage = nil
+                statusMessage = "すでにこのルームにいます。"
+                return
+            }
+            errorMessage = nil
+            pendingInviteRoomID = safe
+            inviteJoinRoomID = safe
+        } catch {
+            pendingInviteRoomID = nil
+            inviteJoinRoomID = nil
+            errorMessage = (error as? RoomServiceError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    /// アラートの dismiss 用。参加ボタン後も `inviteJoinRoomID` は残す。
+    func clearPendingInvite() {
+        pendingInviteRoomID = nil
+    }
+
+    /// キャンセル時は参加予約も破棄する。
+    func cancelPendingInvite() {
+        pendingInviteRoomID = nil
+        inviteJoinRoomID = nil
+    }
+
+    /// URL 招待経路で入室する（パスワード不要）。
+    func joinViaInvite() async {
+        // アラート dismiss で pending が消えても、控えがあれば参加できる。
+        guard let inviteRoomID = inviteJoinRoomID ?? pendingInviteRoomID else { return }
+        pendingInviteRoomID = nil
+        inviteJoinFailureMessage = nil
+        draftRoomName = inviteRoomID
+        await submitCreateOrJoin(isCreate: false, passwordPolicy: .inviteURL)
+        if errorMessage == nil {
+            inviteJoinRoomID = nil
+            statusMessage = "ルーム「\(currentRoomID)」に参加しました。"
+        } else {
+            // 失敗時は再試行できるよう控えを残し、アラートで明示する。
+            inviteJoinRoomID = inviteRoomID
+            inviteJoinFailureMessage = errorMessage
+        }
+    }
+
+    func dismissInviteJoinFailure() {
+        inviteJoinFailureMessage = nil
+    }
+
+    /// 招待参加の失敗アラートから再試行する。
+    func retryInviteJoin() async {
+        inviteJoinFailureMessage = nil
+        await joinViaInvite()
+    }
+
+    /// 現在ルームの共有テキスト（ゲストでは nil）。
+    var inviteShareText: String? {
+        guard !isOnGuestRoom else { return nil }
+        return RoomInviteURL.makeShareText(roomID: currentRoomID)
+    }
+
+    func copyInviteLinkToPasteboard() {
+        guard let text = inviteShareText else { return }
+        UIPasteboard.general.string = text
+        statusMessage = "招待リンクをコピーしました。"
+        errorMessage = nil
     }
 
     func transferHost(to member: RoomMember) async {
@@ -227,7 +257,10 @@ final class RoomViewModel {
 
     // MARK: - Private
 
-    private func submitCreateOrJoin(isCreate: Bool) async {
+    private func submitCreateOrJoin(
+        isCreate: Bool,
+        passwordPolicy: RoomJoinPasswordPolicy
+    ) async {
         errorMessage = nil
         statusMessage = nil
         isLoading = true
@@ -249,11 +282,12 @@ final class RoomViewModel {
             } else {
                 roomID = try await RoomService.joinRoom(
                     name: draftRoomName,
-                    password: optionalPassword
+                    password: optionalPassword,
+                    passwordPolicy: passwordPolicy
                 )
             }
 
-            if !Self.isGuestRoomID(previousRoomID), previousRoomID != roomID {
+            if !RoomSessionStore.isGuestRoomID(previousRoomID), previousRoomID != roomID {
                 isLeavingIntentionally = true
                 stopAllObservation()
                 if wasHost {
@@ -281,13 +315,12 @@ final class RoomViewModel {
         currentRoomID = roomID
         draftRoomName = roomID
         draftPassword = ""
-        UserDefaults.standard.set(roomID, forKey: DefaultsKey.currentRoomID)
+        RoomSessionStore.saveCurrentRoomID(roomID)
         onRoomChange?(roomID)
     }
 
     private func moveToGuestLocally(status: String) {
-        let defaults = UserDefaults.standard
-        let guestID = Self.assignGuestRoomID(defaults: defaults)
+        let guestID = RoomSessionStore.assignGuestRoomID()
         currentRoomID = guestID
         draftRoomName = ""
         draftPassword = ""
@@ -311,7 +344,9 @@ final class RoomViewModel {
             try await RoomService.upsertMember(
                 roomID: currentRoomID,
                 memberID: memberID,
-                displayName: profile.displayName,
+                nickname: profile.nickname,
+                username: profile.username,
+                avatarURL: profile.avatarURL,
                 avatarEmoji: profile.avatarEmoji
             )
             try await RoomService.ensureHostIfNeeded(
@@ -330,7 +365,7 @@ final class RoomViewModel {
 
     private func startRoomObservation(for roomID: String) {
         stopAllObservation()
-        guard !Self.isGuestRoomID(roomID) else {
+        guard !RoomSessionStore.isGuestRoomID(roomID) else {
             members = []
             hostMemberID = nil
             isMembersLoading = false
@@ -413,11 +448,11 @@ extension RoomViewModel {
             roomID: "weekend_cheers",
             hostMemberID: me,
             members: [
-                RoomMember(id: me, displayName: "自分", avatarEmoji: "🍺", joinedAt: now - 30),
-                RoomMember(id: "m_taro", displayName: "たろう", avatarEmoji: "🍻", joinedAt: now - 20),
-                RoomMember(id: "m_hanako", displayName: "はなこ", avatarEmoji: "🥂", joinedAt: now - 10),
-                RoomMember(id: "m_jiro", displayName: "じろう", avatarEmoji: "🥃", joinedAt: now - 5),
-                RoomMember(id: "m_saburo", displayName: "さぶろう", avatarEmoji: "🍷", joinedAt: now),
+                RoomMember(id: me, nickname: "自分", username: "me", avatarURL: nil, avatarEmoji: "🍺", joinedAt: now - 30),
+                RoomMember(id: "m_taro", nickname: "たろう", username: "taro", avatarURL: nil, avatarEmoji: "🍻", joinedAt: now - 20),
+                RoomMember(id: "m_hanako", nickname: "はなこ", username: "hanako", avatarURL: nil, avatarEmoji: "🥂", joinedAt: now - 10),
+                RoomMember(id: "m_jiro", nickname: "じろう", username: "jiro", avatarURL: nil, avatarEmoji: "🥃", joinedAt: now - 5),
+                RoomMember(id: "m_saburo", nickname: "さぶろう", username: "saburo", avatarURL: nil, avatarEmoji: "🍷", joinedAt: now),
             ]
         )
         return vm

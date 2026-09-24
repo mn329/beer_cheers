@@ -7,6 +7,14 @@
 
 import Foundation
 
+/// ルーム参加時のパスワード照合方針。
+enum RoomJoinPasswordPolicy: Sendable {
+    /// 名前参加: meta のパスワードと照合する。
+    case requireMatch
+    /// URL 招待: パスワードは見ない（meta の存在のみ確認）。
+    case inviteURL
+}
+
 /// ルームタブの作成 / 参加モード。
 enum RoomMode: String, CaseIterable, Identifiable, Sendable {
     case create
@@ -89,27 +97,53 @@ struct RoomMeta: Equatable, Sendable {
 /// Realtime Database `rooms/{roomID}/members/{memberID}` の内容。
 struct RoomMember: Identifiable, Equatable, Sendable {
     var id: String
-    var displayName: String
+    /// ニックネーム（主表示）
+    var nickname: String
+    /// ユーザー名（小さく @ 表示。ゲストは空）
+    var username: String
+    /// Storage 上のアイコン URL（無ければ絵文字フォールバック）
+    var avatarURL: String?
+    /// ゲスト／旧データ向け
     var avatarEmoji: String
     var joinedAt: TimeInterval
 
+    /// 互換・呼び出し側向けの主表示名
+    var displayName: String { nickname }
+
     func asFirebaseValue() -> [String: Any] {
-        [
-            "displayName": displayName,
+        var value: [String: Any] = [
+            "nickname": nickname,
+            "username": username,
+            "displayName": nickname, // 旧クライアント互換
             "avatarEmoji": avatarEmoji,
             "joinedAt": joinedAt,
         ]
+        if let avatarURL, !avatarURL.isEmpty {
+            value["avatarURL"] = avatarURL
+        }
+        return value
     }
 
     static func fromFirebaseValue(id: String, value: Any?) -> RoomMember? {
         guard let dict = value as? [String: Any] else { return nil }
-        let rawName = (dict["displayName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let displayName: String
-        if let rawName, !rawName.isEmpty {
-            displayName = rawName
+
+        let rawNickname = (dict["nickname"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rawDisplay = (dict["displayName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nickname: String
+        if let rawNickname, !rawNickname.isEmpty {
+            nickname = rawNickname
+        } else if let rawDisplay, !rawDisplay.isEmpty {
+            nickname = rawDisplay
         } else {
-            displayName = "ゲスト"
+            nickname = "ゲスト"
         }
+
+        let rawUsername = (dict["username"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let username = rawUsername ?? ""
+
+        let rawURL = (dict["avatarURL"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let avatarURL = (rawURL?.isEmpty == false) ? rawURL : nil
+
         let rawEmoji = (dict["avatarEmoji"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         let avatarEmoji: String
         if let rawEmoji, let first = rawEmoji.first {
@@ -117,49 +151,17 @@ struct RoomMember: Identifiable, Equatable, Sendable {
         } else {
             avatarEmoji = "🍺"
         }
+
         let joinedAt = (dict["joinedAt"] as? NSNumber)?.doubleValue
             ?? (dict["joinedAt"] as? Double)
             ?? 0
         return RoomMember(
             id: id,
-            displayName: displayName,
+            nickname: nickname,
+            username: username,
+            avatarURL: avatarURL,
             avatarEmoji: avatarEmoji,
             joinedAt: joinedAt
         )
-    }
-}
-
-enum RoomServiceError: LocalizedError, Equatable {
-    case firebaseNotConfigured
-    case invalidRoomName
-    case roomAlreadyExists
-    case roomNotFound
-    case wrongPassword
-    case networkUnavailable
-    case permissionDenied
-    case notHost
-    case invalidHostCandidate
-
-    var errorDescription: String? {
-        switch self {
-        case .firebaseNotConfigured:
-            "Firebase が未設定のため、ルーム操作ができません。"
-        case .invalidRoomName:
-            "ルーム名が無効です。空や / # $ [ ] は使えません。"
-        case .roomAlreadyExists:
-            "同じ名前のルームが既に存在します。"
-        case .roomNotFound:
-            "ルームが見つかりません。名前を確認するか、先に作成してください。"
-        case .wrongPassword:
-            "パスワードが違います。"
-        case .networkUnavailable:
-            "ネットワークに接続できないため、ルーム情報を取得できませんでした。通信環境を確認して再度お試しください。"
-        case .permissionDenied:
-            "データベースへのアクセスが拒否されました。Firebase の Realtime Database ルールで rooms の読み書きを許可するか、アカウントでサインインしてから再度お試しください。"
-        case .notHost:
-            "ホストだけが操作できます。"
-        case .invalidHostCandidate:
-            "そのメンバーにはホストを譲渡できません。"
-        }
     }
 }
