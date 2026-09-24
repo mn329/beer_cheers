@@ -13,6 +13,7 @@
 		67E4FA6F2F9DDBC300A7DF95 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 67E4FA6E2F9DDBC300A7DF95 /* FirebaseDatabase */; };
 		67E4FA712F9DDBC300A7DF95 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 67E4FA702F9DDBC300A7DF95 /* FirebaseAuth */; };
 		67E4FA722F9DDBC300A7DF95 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 67E4FA732F9DDBC300A7DF95 /* FirebaseCore */; };
+		67E4FA752FCFD9000030FD16 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 67E4FA742FCFD9000030FD16 /* FirebaseStorage */; };
 		BC01A100000000000000000A /* beer_cheersWatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BC01A1000000000000000001 /* beer_cheersWatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -33,7 +34,18 @@
 /* Begin PBXFileReference section */
 		67927ABA2F9DCDEC0046FC0F /* beer_cheers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = beer_cheers.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC01A1000000000000000001 /* beer_cheersWatchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = beer_cheersWatchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC01A1000000000000000011 /* CoreMotion.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMotion.framework; path = System/Library/Frameworks/CoreMotion.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		BC01A1000000000000000020 /* Exceptions for "beer_cheers Watch App" folder in "beer_cheers Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BC01A1000000000000000003 /* beer_cheers Watch App */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		67927ABC2F9DCDEC0046FC0F /* beer_cheers */ = {
@@ -43,6 +55,9 @@
 		};
 		BC01A1000000000000000002 /* beer_cheers Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BC01A1000000000000000020 /* Exceptions for "beer_cheers Watch App" folder in "beer_cheers Watch App" target */,
+			);
 			path = "beer_cheers Watch App";
 			sourceTree = "<group>";
 		};
@@ -59,6 +74,7 @@
 				67E4FA6D2F9DDBC300A7DF95 /* FirebaseAnalytics in Frameworks */,
 				67E4FA712F9DDBC300A7DF95 /* FirebaseAuth in Frameworks */,
 				67E4FA722F9DDBC300A7DF95 /* FirebaseCore in Frameworks */,
+				67E4FA752FCFD9000030FD16 /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,12 +88,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		6712F6D83065330000FD2AD1 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				BC01A1000000000000000011 /* CoreMotion.framework */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
 		67927AB12F9DCDEC0046FC0F = {
 			isa = PBXGroup;
 			children = (
 				67927ABC2F9DCDEC0046FC0F /* beer_cheers */,
 				BC01A1000000000000000002 /* beer_cheers Watch App */,
 				67927ABB2F9DCDEC0046FC0F /* Products */,
+				6712F6D83065330000FD2AD1 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -115,6 +140,7 @@
 				67E4FA6E2F9DDBC300A7DF95 /* FirebaseDatabase */,
 				67E4FA702F9DDBC300A7DF95 /* FirebaseAuth */,
 				67E4FA732F9DDBC300A7DF95 /* FirebaseCore */,
+				67E4FA742FCFD9000030FD16 /* FirebaseStorage */,
 				676E07C42FCFD47C0030FD16 /* GoogleSignIn */,
 				676E07C62FCFD47C0030FD16 /* GoogleSignInSwift */,
 			);
@@ -356,6 +382,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "beer-cheers-Info.plist";
 				INFOPLIST_KEY_NSMotionUsageDescription = "左手のひらへの「乾杯」衝撃を検知するため、モーションデータを使用します。";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "プロフィール画像を設定するために写真ライブラリへのアクセスが必要です。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -393,6 +420,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "beer-cheers-Info.plist";
 				INFOPLIST_KEY_NSMotionUsageDescription = "左手のひらへの「乾杯」衝撃を検知するため、モーションデータを使用します。";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "プロフィール画像を設定するために写真ライブラリへのアクセスが必要です。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -422,13 +450,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K3BSAX58ZG;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "beer_cheers Watch App/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = beer_cheers;
+				INFOPLIST_KEY_NSMotionUsageDescription = "腕の「乾杯」動作を検知するため、モーションデータを使用します。";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.minato.beer-cheers";
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
@@ -439,7 +469,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.minato.beer-cheers.watchkitapp";
 				PRODUCT_NAME = beer_cheersWatchApp;
-				PROVISIONING_PROFILE_SPECIFIER = "beer-cheers-watch-dev";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -461,13 +491,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K3BSAX58ZG;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "beer_cheers Watch App/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = beer_cheers;
+				INFOPLIST_KEY_NSMotionUsageDescription = "腕の「乾杯」動作を検知するため、モーションデータを使用します。";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.minato.beer-cheers";
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
@@ -478,7 +510,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.minato.beer-cheers.watchkitapp";
 				PRODUCT_NAME = beer_cheersWatchApp;
-				PROVISIONING_PROFILE_SPECIFIER = "beer-cheers-watch-dev";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -575,6 +607,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 67E4FA6B2F9DDBC300A7DF95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCore;
+		};
+		67E4FA742FCFD9000030FD16 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 67E4FA6B2F9DDBC300A7DF95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
