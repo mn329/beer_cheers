@@ -3,20 +3,19 @@
 //  beer_cheers
 //
 //  乾杯・ルーム・アカウントを切り替える下部 TabView。
-//  iOS 26 以降は TabView がデフォルトで Liquid Glass の見た目になり、タブバーはコンテンツ上に浮く。
-//  ルーム画面で部屋を作成・参加したら、AirCheersViewModel に切替を伝播するよう結線する。
-//  Realtime DB の乾杯トリガ監視はここで開始し、乾杯タブ以外でも更新を受け取れるようにする。
+//  初回以外のプロフィール設定は fullScreenCover で表示し、キャンセル時はアカウントタブへ戻す。
 //
 
 import SwiftUI
 
 struct RootTabView: View {
     @Bindable var cheersViewModel: AirCheersViewModel
+    @Bindable var accountViewModel: AccountViewModel
     @State private var roomViewModel = RoomViewModel()
-    @State private var accountViewModel = AccountViewModel()
     @State private var selection: TabID = .cheers
+    /// 同一 URL の連続配信で二重ダイアログにならないようにする。
+    @State private var lastHandledInviteURL: URL?
 
-    /// SwiftUI の `Tab` ビューと名前衝突しないよう、選択肢には別名を付ける。
     enum TabID: Hashable {
         case cheers
         case room
@@ -43,8 +42,24 @@ struct RootTabView: View {
             }
         }
         .toolbarBackgroundVisibility(.hidden, for: .tabBar)
+        .fullScreenCover(isPresented: Binding(
+            get: { accountViewModel.needsProfileSetup },
+            set: { _ in }
+        )) {
+            ProfileSetupView(
+                viewModel: accountViewModel,
+                onFinished: {
+                    roomViewModel.resumeMembershipIfNeeded()
+                    selection = .account
+                },
+                onCancelled: {
+                    selection = .account
+                }
+            )
+        }
         .onAppear {
             accountViewModel.startObservingAuthState()
+            cheersViewModel.ensureWatchConnectivity()
             let cheersVM = cheersViewModel
             let accountVM = accountViewModel
             cheersVM.switchRoom(to: roomViewModel.currentRoomID)
@@ -52,18 +67,39 @@ struct RootTabView: View {
                 cheersVM?.switchRoom(to: newRoomID)
             }
             roomViewModel.memberProfileProvider = { [weak accountVM] in
-                let profile = accountVM?.profile ?? UserAccountProfile.default
-                return (profile.displayName, profile.avatarEmoji)
+                accountVM?.profile ?? UserAccountProfile.default
             }
             roomViewModel.resumeMembershipIfNeeded()
-            // リモート乾杯の監視はタブに依存させない（アカウント表示中も Firebase の更新を受け取る）
             DispatchQueue.main.async {
                 cheersViewModel.startRemoteTriggerListening()
             }
         }
+        .onOpenURL { url in
+            if accountViewModel.handleIncomingAuthURL(url) {
+                return
+            }
+            handleIncomingInviteURL(url)
+        }
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+            guard let url = activity.webpageURL else { return }
+            handleIncomingInviteURL(url)
+        }
+    }
+
+    private func handleIncomingInviteURL(_ url: URL) {
+        if let last = lastHandledInviteURL, last == url {
+            return
+        }
+        guard let roomID = RoomInviteURL.parse(url) else { return }
+        lastHandledInviteURL = url
+        selection = .room
+        roomViewModel.presentInvite(roomID: roomID)
     }
 }
 
 #Preview {
-    RootTabView(cheersViewModel: AirCheersViewModel())
+    RootTabView(
+        cheersViewModel: AirCheersViewModel(),
+        accountViewModel: AccountViewModel()
+    )
 }

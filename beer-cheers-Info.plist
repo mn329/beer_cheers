@@ -12,6 +12,21 @@
 				<string>com.googleusercontent.apps.856324301964-m2iekb3re48a6j4vodjp31q3654uuvfq</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.minato.beer-cheers.invite</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>beercheers</string>
+			</array>
+		</dict>
 	</array>
+	<!-- Google Sign-In（Firebase / GoogleService-Info の CLIENT_ID と一致させる） -->
+	<key>GIDClientID</key>
+	<string>856324301964-m2iekb3re48a6j4vodjp31q3654uuvfq.apps.googleusercontent.com</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>プロフィール画像を設定するために写真ライブラリへのアクセスが必要です。</string>
 </dict>
 </plist>
