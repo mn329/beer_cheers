@@ -2,24 +2,23 @@
 //  AboutSection.swift
 //  beer_cheers
 //
-//  Created by 石田湊 on 2026/05/26.
+//  アプリ情報（バージョンのみ）。
 //
 
 import SwiftUI
 
 struct AboutSection: View {
-    
     private var versionString: String {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "—"
         let build = info?["CFBundleVersion"] as? String ?? "—"
         return "\(version) (\(build))"
     }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14){
-            SectionTitle(text: "About", systemImage: "info.circle")
-            HStack{
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle(text: "アプリ", systemImage: "info.circle")
+            HStack {
                 Text("バージョン")
                     .foregroundStyle(AccountContentStyle.secondary)
                 Spacer()
@@ -27,24 +26,12 @@ struct AboutSection: View {
                     .foregroundStyle(AccountContentStyle.primary)
                     .font(.subheadline.monospacedDigit())
             }
-            HStack(){
-                Text("リポジトリ")
-                    .foregroundStyle(AccountContentStyle.secondary)
-                Spacer()
-                Link(destination: URL(string: "https://github.com/mn329/beer_cheers")!) {
-                    Text("github.com/mn329/beer_cheers")
-                        .font(.subheadline)
-                        .underline()
-                    
-                }
-                .tint(AccountContentStyle.primary)
-            }
         }
         .padding(16)
         .background(GlassCardBackground())
     }
 }
-    
+
 #Preview {
     ZStack {
         AppBackground()
