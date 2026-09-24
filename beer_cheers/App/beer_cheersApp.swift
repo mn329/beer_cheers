@@ -19,7 +19,12 @@ struct beer_cheersApp: App {
         FirebaseBootstrap.configure()
         if let clientID = FirebaseApp.app()?.options.clientID {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        } else if let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
+                  !clientID.isEmpty {
+            // Firebase plist 未読込時のフォールバック（Info.plist の GIDClientID）
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
         }
+        AuthXcodeConfigValidator.validateAndLog()
     }
 
     var body: some Scene {
