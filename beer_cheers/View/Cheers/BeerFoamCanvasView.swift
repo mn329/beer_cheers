@@ -15,16 +15,25 @@ struct BeerFoamCanvasView: View {
     /// 泡の噴出基準の画面高さに対する比率（0 = 上端、1 = 下端）。ジョッキの位置に合わせる。
     let foamOriginYFactor: CGFloat
     let buds: [FoamBud]
+    /// false のとき TimelineView を止め、常時 30fps の負荷を避ける。
+    var isAnimating: Bool = true
 
-    init(burstID: UUID, birth: Date, foamOriginYFactor: CGFloat = 0.5, buds: [FoamBud]) {
+    init(
+        burstID: UUID,
+        birth: Date,
+        foamOriginYFactor: CGFloat = 0.5,
+        buds: [FoamBud],
+        isAnimating: Bool = true
+    ) {
         self.burstID = burstID
         self.birth = birth
         self.foamOriginYFactor = foamOriginYFactor
         self.buds = buds
+        self.isAnimating = isAnimating
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isAnimating)) { timeline in
             // birth と timeline.date のわずかな逆転で負になると全泡が描画されないため下限を張る
             let elapsed = max(0, timeline.date.timeIntervalSince(birth))
             Canvas { context, size in

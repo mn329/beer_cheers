@@ -21,6 +21,8 @@ final class CheersEffectsController {
     private(set) var foamBurstID = UUID()
     private(set) var foamBirthdate = Date()
     private(set) var foamBuds: [FoamBud] = []
+    /// 泡の TimelineView を回す必要があるか（バースト中のみ true）
+    private(set) var isFoamAnimating = false
 
     private(set) var cheersCaptionOpacity: Double = 0
 
@@ -28,7 +30,10 @@ final class CheersEffectsController {
 
     private let cheersCaptionHold: Duration = .milliseconds(620)
     private let cheersCaptionFade: TimeInterval = 0.26
+    /// startDelay 最大 + lifeSpan 最大より少し長め
+    private let foamAnimationHold: Duration = .milliseconds(3600)
     private var cheersCaptionHideTask: Task<Void, Never>?
+    private var foamIdleTask: Task<Void, Never>?
 
     private var foamBudPool: [FoamBud]?
     private var foamPoolRefillTask: Task<Void, Never>?
@@ -47,6 +52,8 @@ final class CheersEffectsController {
         foamBuds = consumeFoamBudsForBurst()
         foamBurstID = UUID()
         foamBirthdate = Date()
+        isFoamAnimating = true
+        scheduleFoamIdle()
         flashCheersCaption()
         animateMugReaction()
     }
@@ -57,6 +64,10 @@ final class CheersEffectsController {
         foamPoolRefillTask = nil
         cheersCaptionHideTask?.cancel()
         cheersCaptionHideTask = nil
+        foamIdleTask?.cancel()
+        foamIdleTask = nil
+        isFoamAnimating = false
+        foamBuds = []
         var t = Transaction()
         t.disablesAnimations = true
         withTransaction(t) {
@@ -141,6 +152,16 @@ final class CheersEffectsController {
             if foamBudPool == nil {
                 foamBudPool = next
             }
+        }
+    }
+
+    private func scheduleFoamIdle() {
+        foamIdleTask?.cancel()
+        foamIdleTask = Task { @MainActor in
+            try? await Task.sleep(for: self.foamAnimationHold)
+            guard !Task.isCancelled else { return }
+            self.isFoamAnimating = false
+            self.foamBuds = []
         }
     }
 }
