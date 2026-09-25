@@ -125,3 +125,33 @@ code {
 .button.secondary:hover {
   background: #fff1da;
 }
+
+.card.doc {
+  width: min(720px, 100%);
+}
+
+.doc h2 {
+  margin: 28px 0 10px;
+  font-size: 1.15rem;
+  line-height: 1.4;
+}
+
+.doc p,
+.doc li {
+  line-height: 1.75;
+}
+
+.doc ul {
+  margin: 0 0 12px;
+  padding-left: 1.3em;
+}
+
+.doc a {
+  color: var(--accent-deep);
+}
+
+.doc .updated {
+  margin-top: 28px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
