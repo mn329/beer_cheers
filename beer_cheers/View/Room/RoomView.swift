@@ -475,6 +475,7 @@ struct RoomView: View {
     }
 }
 
+#if DEBUG
 #Preview("未参加") {
     RoomView(viewModel: RoomViewModel())
 }
@@ -486,3 +487,4 @@ struct RoomView: View {
 #Preview("メンバー読み込み中") {
     RoomView(viewModel: .previewMembersLoading())
 }
+#endif
