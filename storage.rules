@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // ファイル名全体が1セグメント（例: <uid>.jpg）
+    match /avatars/{imageId} {
+      // メンバー一覧で他端末からも表示するため取得は公開。一覧（list）は許可せず、全ユーザーの画像を列挙させない
+      allow get: if true;
+      // アプリは 512px の JPEG（数十〜数百KB）を上げるため、1MB を超えるものは拒否する
+      allow write: if request.auth != null
+                   && imageId == request.auth.uid + '.jpg'
+                   && request.resource.size < 1 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null
+                    && imageId == request.auth.uid + '.jpg';
+    }
+  }
+}

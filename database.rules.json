@@ -3,13 +3,51 @@
     ".read": false,
     ".write": false,
     "rooms": {
-      ".read": true,
-      ".write": true
+      "$roomID": {
+        ".read": "$roomID.length <= 128",
+        ".write": "$roomID.length <= 128",
+        "meta": {
+          ".validate": "newData.hasChildren(['name', 'createdAt'])",
+          "name": { ".validate": "newData.isString() && newData.val().length <= 128" },
+          "createdAt": { ".validate": "newData.isNumber()" },
+          "password": { ".validate": "newData.isString() && newData.val().length <= 128" },
+          "hostMemberID": { ".validate": "newData.isString() && newData.val().length <= 64" },
+          "$other": { ".validate": false }
+        },
+        "members": {
+          "$memberID": {
+            ".validate": "$memberID.length <= 64 && newData.hasChildren(['joinedAt'])",
+            "nickname": { ".validate": "newData.isString() && newData.val().length <= 64" },
+            "displayName": { ".validate": "newData.isString() && newData.val().length <= 64" },
+            "username": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "avatarEmoji": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "avatarURL": { ".validate": "newData.isString() && newData.val().length <= 1024" },
+            "joinedAt": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
+        "trigger": {
+          ".validate": "newData.hasChildren(['ts', 'id'])",
+          "ts": { ".validate": "newData.isNumber()" },
+          "id": { ".validate": "newData.isString() && newData.val().length <= 64" },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
+      }
     },
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
+        ".write": "auth != null && auth.uid == $uid",
+        "profile": {
+          "username": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "nickname": { ".validate": "newData.isString() && newData.val().length <= 64" },
+          "avatarURL": { ".validate": "newData.isString() && newData.val().length <= 1024" },
+          "avatarEmoji": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "updatedAt": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
       }
     }
   }
