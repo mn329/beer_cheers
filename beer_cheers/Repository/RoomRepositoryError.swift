@@ -23,7 +23,7 @@ nonisolated enum RoomRepositoryError: LocalizedError, Equatable, Sendable {
         case .firebaseNotConfigured:
             "Firebase が未設定のため、ルーム操作ができません。"
         case .invalidRoomName:
-            "ルーム名が無効です。空や / # $ [ ] は使えません。"
+            "ルーム名が無効です。空や128文字を超える名前、/ . # $ [ ] は使えません。"
         case .roomAlreadyExists:
             "同じ名前のルームが既に存在します。"
         case .roomNotFound:
