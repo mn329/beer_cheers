@@ -96,6 +96,25 @@ final class RoomViewModelTests {
         #expect(repository.calls.contains(.dissolveRoom(roomID: "first")))
     }
 
+    @Test func joinedRoomsAppearInHistoryExceptCurrentOne() async {
+        await join("first")
+        await join("second")
+
+        #expect(viewModel.recentRoomIDs == ["second", "first"])
+        #expect(viewModel.recentRoomsToShow == ["first"])
+    }
+
+    @Test func choosingRoomFromHistoryFillsJoinForm() {
+        viewModel.mode = .create
+        viewModel.draftPassword = "secret"
+
+        viewModel.prepareJoin(recentRoomID: "weekend")
+
+        #expect(viewModel.mode == .join)
+        #expect(viewModel.draftRoomName == "weekend")
+        #expect(viewModel.draftPassword.isEmpty)
+    }
+
     // MARK: - 退出・解散
 
     @Test func hostClosingRoomDissolvesIt() async {
