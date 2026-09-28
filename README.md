@@ -33,7 +33,7 @@ Firebase **Realtime Database** と連携し、同じ「部屋」にいる端末�
 ```
 beer_cheers/
 ├── App/                 # 起動・Tab
-├── View/                # Cheers / Room / Account / Start / Common
+├── View/                # Cheers / Room / Account / Start / Tutorial / Common
 ├── ViewModel/           # 画面オーケストレーター
 ├── Repository/          # Firebase 等のデータ窓口（Room / Profile / Avatar）
 ├── Service/             # 端末機能（Motion / Audio / Haptics / Remote sync / Auth）
@@ -47,7 +47,9 @@ beer_cheers/
 | `App/beer_cheersApp.swift`                     | エントリ、Firebase / Google Sign-In 初期化、タブバー見た目 |
 | `App/AppEntryView.swift`                       | 泡の事前生成 → 初回 `StartFlowView` / 以降 `RootTabView`   |
 | `View/Start/StartFlowView.swift`               | ようこそ → Apple / Google / ゲスト                         |
-| `App/RootTabView.swift`                        | 下部 TabView、リモート監視・部屋連携                       |
+| `App/RootTabView.swift`                        | 下部 TabView、リモート監視・部屋連携、使い方ガイドの進行   |
+| `View/Tutorial/TutorialCoachOverlay.swift`     | 実画面に重ねる使い方ガイド（乾杯 → Watch → ルーム）        |
+| `Model/Onboarding/TutorialStep.swift`          | 使い方ガイドのステップ順と文言                             |
 | `ViewModel/AirCheersViewModel.swift`           | Motion / Audio / Haptics / Remote / Effects の束ね         |
 | `Repository/RoomRepository.swift`              | ルーム meta / members の RTDB 操作                         |
 | `Repository/RoomSessionStore.swift`            | ルーム ID / メンバー ID のローカル永続化                   |
