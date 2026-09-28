@@ -156,6 +156,19 @@ final class RoomViewModelTests {
         #expect(viewModel.isCurrentUserHost)
     }
 
+    @Test func cheersStatusReflectsRoomAndLoadedMembers() async {
+        #expect(viewModel.cheersRoomStatus.isAlone)
+        await join("weekend")
+        #expect(viewModel.cheersRoomStatus.title == "weekend")
+
+        repository.emitMembers([member(memberID, joinedAt: 1), member("m_taro", joinedAt: 2)], roomID: "weekend")
+        repository.emitMeta(RoomMeta(name: "weekend", password: nil, createdAt: 1, hostMemberID: nil), roomID: "weekend")
+
+        #expect(viewModel.cheersRoomStatus.title == "weekend・2人")
+        #expect(viewModel.nickname(ofMemberID: "m_taro") == "m_taro")
+        #expect(viewModel.nickname(ofMemberID: "m_unknown") == nil)
+    }
+
     // MARK: - 再接続
 
     /// 再登録は Task で走るため、MainActor に順番を譲りながら条件が満たされるのを待つ。

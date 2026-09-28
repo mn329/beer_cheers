@@ -30,6 +30,7 @@
           ".validate": "newData.hasChildren(['ts', 'id'])",
           "ts": { ".validate": "newData.isNumber()" },
           "id": { ".validate": "newData.isString() && newData.val().length <= 64" },
+          "from": { ".validate": "newData.isString() && newData.val().length <= 64" },
           "$other": { ".validate": false }
         },
         "$other": { ".validate": false }

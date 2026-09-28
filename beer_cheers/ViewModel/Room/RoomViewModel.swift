@@ -82,6 +82,14 @@ final class RoomViewModel {
         }
     }
 
+    var cheersRoomStatus: CheersRoomStatus {
+        CheersRoomStatus(roomID: currentRoomID, memberCount: isMembersLoading ? nil : members.count)
+    }
+
+    func nickname(ofMemberID id: String) -> String? {
+        members.first { $0.id == id }?.nickname
+    }
+
     func isHost(_ member: RoomMember) -> Bool {
         member.id == hostMemberID
     }

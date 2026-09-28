@@ -30,12 +30,16 @@ final class AirCheersViewModel {
     /// ルーム参加中にチュートリアルを見返したとき、練習の乾杯が仲間へ届かないよう送信を止める。
     var isPracticeMode = false
 
+    /// 直近の乾杯を送ってきた相手のメンバー ID。自分の乾杯や送り主を載せない旧バージョンからの乾杯では nil。
+    private(set) var lastCheersSenderID: String?
+
     // MARK: - Services
 
     private let motionDetector: MotionImpactDetector
     private let audio: ClinkAudioPlayer
     private let haptics: CheersHapticsPlayer
     private let remote: CheersRemoteSync
+    private let memberID: String
     /// 画面側が監視を望んでいるか。ゲストルーム中は要求があっても実際には監視しない。
     private var isRemoteListeningRequested = false
 
@@ -47,7 +51,8 @@ final class AirCheersViewModel {
         haptics: CheersHapticsPlayer = .init(),
         remote: CheersRemoteSync = .init(),
         effects: CheersEffectsController = .init(),
-        roomID: String = RoomSessionStore.loadCurrentRoomID()
+        roomID: String = RoomSessionStore.loadCurrentRoomID(),
+        memberID: String = RoomSessionStore.stableMemberID()
     ) {
         self.motionDetector = motionDetector
         self.audio = audio
@@ -55,6 +60,7 @@ final class AirCheersViewModel {
         self.remote = remote
         self.effects = effects
         self.roomID = roomID
+        self.memberID = memberID
         self.isMotionAvailable = motionDetector.isAvailable
     }
 
@@ -113,7 +119,8 @@ final class AirCheersViewModel {
     /// 送信は `CheersRemoteSync.publishLocalCheers` が監視中のルームにだけ行うので、監視を止めれば送信も止まる。
     private func applyRemoteListening() {
         guard isRemoteListeningRequested, !RoomSessionStore.isGuestRoomID(roomID) else { return }
-        remote.startListening(roomID: roomID) { [weak self] in
+        remote.startListening(roomID: roomID) { [weak self] senderID in
+            self?.lastCheersSenderID = senderID
             self?.triggerCheers()
         }
     }
@@ -130,10 +137,11 @@ final class AirCheersViewModel {
     }
 
     private func playCheersLocallyAndPublish() {
+        lastCheersSenderID = nil
         triggerCheers()
         localCheersCount += 1
         guard !isPracticeMode else { return }
-        remote.publishLocalCheers()
+        remote.publishLocalCheers(senderID: memberID)
     }
 
     private func triggerCheers() {

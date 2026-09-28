@@ -16,11 +16,17 @@ private enum BeerLayout {
     static let beerCenterYFactor: CGFloat = 0.56
     static let beerEmojiSize: CGFloat = 168
     static let footerBottomPadding: CGFloat = 28
-    static let cheersCaptionTopPadding: CGFloat = 50
+    /// 上端のルームバッジと重ならない位置。
+    static let cheersCaptionTopPadding: CGFloat = 72
+    static let roomBadgeTopPadding: CGFloat = 8
 }
 
 struct CheersView: View {
     @Bindable var viewModel: AirCheersViewModel
+    var roomStatus = CheersRoomStatus(roomID: RoomSessionStore.makeGuestRoomID(), memberCount: nil)
+    /// 直近の乾杯を送ってきた相手のニックネーム。自分の乾杯や不明な相手なら nil。
+    var senderName: String?
+    var onOpenRoom: () -> Void = {}
 
     var body: some View {
         GeometryReader { proxy in
@@ -54,6 +60,13 @@ struct CheersView: View {
                 }
                 .frame(width: w, height: h)
 
+                VStack {
+                    roomBadge
+                        .padding(.top, BeerLayout.roomBadgeTopPadding)
+                    Spacer(minLength: 0)
+                }
+                .frame(width: w, height: h)
+
                 cheersCaptionOverlay
             }
             .frame(width: w, height: h)
@@ -76,8 +89,37 @@ struct CheersView: View {
             .offset(y: viewModel.effects.mugOffsetY)
     }
 
+    private var roomBadge: some View {
+        Button(action: onOpenRoom) {
+            HStack(spacing: 8) {
+                Image(systemName: roomStatus.isAlone ? "person.fill" : "person.2.fill")
+                    .font(.footnote)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(roomStatus.title)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                    if let subtitle = roomStatus.subtitle {
+                        Text(subtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Capsule(style: .continuous).fill(Color.black.opacity(0.28)))
+            .padding(.horizontal, 24)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("ルームタブを開く")
+    }
+
     private var cheersCaptionOverlay: some View {
-        VStack {
+        VStack(spacing: 10) {
             Text("CHEERS!!")
                 .font(.system(size: 40, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
@@ -91,6 +133,15 @@ struct CheersView: View {
                         .fill(Color.black.opacity(0.28 * viewModel.effects.cheersCaptionOpacity))
                 )
                 .padding(.top, BeerLayout.cheersCaptionTopPadding)
+            if let senderName {
+                Text(CheersRoomStatus.senderCaption(nickname: senderName))
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .shadow(color: .black.opacity(0.5), radius: 6, y: 2)
+                    .opacity(viewModel.effects.cheersCaptionOpacity)
+                    .padding(.horizontal, 24)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

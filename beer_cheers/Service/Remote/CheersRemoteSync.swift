@@ -34,10 +34,11 @@ final class CheersRemoteSync {
     /// 自分の `setValue` の戻りを `.observe` で無視するためのトークン
     private var pendingEchoSignature: String?
 
-    private var onRemoteCheers: (@MainActor () -> Void)?
+    /// 引数は送り主のメンバー ID。送り主を載せない旧バージョンからの乾杯では nil。
+    private var onRemoteCheers: (@MainActor (String?) -> Void)?
 
     /// 指定の room の trigger を監視し始める。初回は値が来てもベースライン確定のみ（既存値で乾杯しない）。
-    func startListening(roomID: String, onRemoteCheers: @escaping @MainActor () -> Void) {
+    func startListening(roomID: String, onRemoteCheers: @escaping @MainActor (String?) -> Void) {
         stopListening()
         guard FirebaseBootstrap.isConfigured else {
             #if DEBUG
@@ -80,7 +81,7 @@ final class CheersRemoteSync {
     }
 
     /// ローカル衝撃時に呼ぶ。クールダウンと自分エコー抑制込み。
-    func publishLocalCheers() {
+    func publishLocalCheers(senderID: String) {
         guard FirebaseBootstrap.isConfigured else {
             #if DEBUG
                 print(
@@ -97,6 +98,7 @@ final class CheersRemoteSync {
         let payload: [String: Any] = [
             "ts": Date().timeIntervalSince1970,
             "id": UUID().uuidString,
+            "from": senderID,
         ]
         pendingEchoSignature = Self.triggerSignature(from: payload) ?? Self.serialize(payload)
 
@@ -134,10 +136,15 @@ final class CheersRemoteSync {
         }
 
         guard exists else { return }
-        onRemoteCheers?()
+        onRemoteCheers?(Self.senderID(from: value))
     }
 
     private static func triggerPath(for roomID: String) -> String { "rooms/\(roomID)/trigger" }
+
+    private nonisolated static func senderID(from value: Any?) -> String? {
+        guard let id = (value as? [String: Any])?["from"] as? String, !id.isEmpty else { return nil }
+        return id
+    }
 
     /// `id` と `ts` が取れるときだけ安定キーを返す（コンソール編集や NSNumber 経由でも比較がぶれにくい）
     private nonisolated static func triggerSignature(from value: Any?) -> String? {
