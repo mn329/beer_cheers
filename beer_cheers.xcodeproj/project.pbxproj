@@ -17,6 +17,16 @@
 		BC01A100000000000000000A /* beer_cheersWatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BC01A1000000000000000001 /* beer_cheersWatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		67B4C5F9306A5CE800F9FFA7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 67927AB22F9DCDEC0046FC0F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 67927AB92F9DCDEC0046FC0F;
+			remoteInfo = beer_cheers;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXCopyFilesBuildPhase section */
 		BC01A1000000000000000007 /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -33,6 +43,7 @@
 
 /* Begin PBXFileReference section */
 		67927ABA2F9DCDEC0046FC0F /* beer_cheers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = beer_cheers.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		67B4C5F5306A5CE800F9FFA7 /* beer_cheersTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = beer_cheersTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC01A1000000000000000001 /* beer_cheersWatchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = beer_cheersWatchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC01A1000000000000000011 /* CoreMotion.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMotion.framework; path = System/Library/Frameworks/CoreMotion.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -51,6 +62,11 @@
 		67927ABC2F9DCDEC0046FC0F /* beer_cheers */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = beer_cheers;
+			sourceTree = "<group>";
+		};
+		67B4C5F6306A5CE800F9FFA7 /* beer_cheersTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = beer_cheersTests;
 			sourceTree = "<group>";
 		};
 		BC01A1000000000000000002 /* beer_cheers Watch App */ = {
@@ -78,6 +94,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		67B4C5F2306A5CE800F9FFA7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BC01A1000000000000000005 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -101,6 +124,7 @@
 			children = (
 				67927ABC2F9DCDEC0046FC0F /* beer_cheers */,
 				BC01A1000000000000000002 /* beer_cheers Watch App */,
+				67B4C5F6306A5CE800F9FFA7 /* beer_cheersTests */,
 				67927ABB2F9DCDEC0046FC0F /* Products */,
 				6712F6D83065330000FD2AD1 /* Recovered References */,
 			);
@@ -111,6 +135,7 @@
 			children = (
 				67927ABA2F9DCDEC0046FC0F /* beer_cheers.app */,
 				BC01A1000000000000000001 /* beer_cheersWatchApp.app */,
+				67B4C5F5306A5CE800F9FFA7 /* beer_cheersTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -148,6 +173,29 @@
 			productReference = 67927ABA2F9DCDEC0046FC0F /* beer_cheers.app */;
 			productType = "com.apple.product-type.application";
 		};
+		67B4C5F4306A5CE800F9FFA7 /* beer_cheersTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 67B4C5FB306A5CE800F9FFA7 /* Build configuration list for PBXNativeTarget "beer_cheersTests" */;
+			buildPhases = (
+				67B4C5F1306A5CE800F9FFA7 /* Sources */,
+				67B4C5F2306A5CE800F9FFA7 /* Frameworks */,
+				67B4C5F3306A5CE800F9FFA7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				67B4C5FA306A5CE800F9FFA7 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				67B4C5F6306A5CE800F9FFA7 /* beer_cheersTests */,
+			);
+			name = beer_cheersTests;
+			packageProductDependencies = (
+			);
+			productName = beer_cheersTests;
+			productReference = 67B4C5F5306A5CE800F9FFA7 /* beer_cheersTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		BC01A1000000000000000003 /* beer_cheers Watch App */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BC01A100000000000000000D /* Build configuration list for PBXNativeTarget "beer_cheers Watch App" */;
@@ -183,6 +231,10 @@
 					67927AB92F9DCDEC0046FC0F = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
+					67B4C5F4306A5CE800F9FFA7 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = 67927AB92F9DCDEC0046FC0F;
+					};
 					BC01A1000000000000000003 = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
@@ -208,12 +260,20 @@
 			targets = (
 				67927AB92F9DCDEC0046FC0F /* beer_cheers */,
 				BC01A1000000000000000003 /* beer_cheers Watch App */,
+				67B4C5F4306A5CE800F9FFA7 /* beer_cheersTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		67927AB82F9DCDEC0046FC0F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		67B4C5F3306A5CE800F9FFA7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -237,6 +297,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		67B4C5F1306A5CE800F9FFA7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BC01A1000000000000000004 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -245,6 +312,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		67B4C5FA306A5CE800F9FFA7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 67927AB92F9DCDEC0046FC0F /* beer_cheers */;
+			targetProxy = 67B4C5F9306A5CE800F9FFA7 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		67927AC32F9DCDEE0046FC0F /* Debug */ = {
@@ -444,6 +519,52 @@
 			};
 			name = Release;
 		};
+		67B4C5FC306A5CE800F9FFA7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K3BSAX58ZG;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.minato.beer-cheersTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/beer_cheers.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/beer_cheers";
+			};
+			name = Debug;
+		};
+		67B4C5FD306A5CE800F9FFA7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K3BSAX58ZG;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.minato.beer-cheersTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/beer_cheers.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/beer_cheers";
+			};
+			name = Release;
+		};
 		BC01A100000000000000000B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -543,6 +664,15 @@
 			buildConfigurations = (
 				67927AC62F9DCDEE0046FC0F /* Debug */,
 				67927AC72F9DCDEE0046FC0F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		67B4C5FB306A5CE800F9FFA7 /* Build configuration list for PBXNativeTarget "beer_cheersTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				67B4C5FC306A5CE800F9FFA7 /* Debug */,
+				67B4C5FD306A5CE800F9FFA7 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
