@@ -37,6 +37,8 @@ final class RoomViewModel {
         UserAccountProfile.default
     }
 
+    private let repository: any RoomRepositorying
+    private let defaults: UserDefaults
     private var stopMembersListening: (() -> Void)?
     private var stopMetaListening: (() -> Void)?
     private var pendingMembersSnapshot = false
@@ -47,9 +49,11 @@ final class RoomViewModel {
     /// Preview 用。true のとき Firebase 同期を行わない。
     private var usesRemoteSync = true
 
-    init() {
-        memberID = RoomSessionStore.stableMemberID()
-        currentRoomID = RoomSessionStore.loadCurrentRoomID()
+    init(repository: any RoomRepositorying = RoomRepository(), defaults: UserDefaults = .standard) {
+        self.repository = repository
+        self.defaults = defaults
+        memberID = RoomSessionStore.stableMemberID(defaults: defaults)
+        currentRoomID = RoomSessionStore.loadCurrentRoomID(defaults: defaults)
         draftRoomName = RoomSessionStore.isGuestRoomID(currentRoomID) ? "" : currentRoomID
     }
 
@@ -112,9 +116,9 @@ final class RoomViewModel {
 
         do {
             if asHost {
-                try await RoomService.dissolveRoom(roomID: leavingRoomID)
+                try await repository.dissolveRoom(roomID: leavingRoomID)
             } else {
-                try await RoomService.leaveMember(roomID: leavingRoomID, memberID: memberID)
+                try await repository.leaveMember(roomID: leavingRoomID, memberID: memberID)
             }
         } catch {
             #if DEBUG
@@ -164,7 +168,7 @@ final class RoomViewModel {
         } catch {
             pendingInviteRoomID = nil
             inviteJoinRoomID = nil
-            errorMessage = (error as? RoomServiceError)?.errorDescription ?? error.localizedDescription
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -223,7 +227,7 @@ final class RoomViewModel {
     func transferHost(to member: RoomMember) async {
         guard !isOnGuestRoom else { return }
         guard isCurrentUserHost else {
-            errorMessage = RoomServiceError.notHost.errorDescription
+            errorMessage = RoomRepositoryError.notHost.errorDescription
             return
         }
         guard member.id != memberID else { return }
@@ -241,17 +245,15 @@ final class RoomViewModel {
 
         do {
             // meta.hostMemberID のみ更新。ルームへの再参加は行わない。
-            try await RoomService.transferHost(
+            try await repository.transferHost(
                 roomID: currentRoomID,
                 currentHostMemberID: memberID,
                 newHostMemberID: member.id
             )
             hostMemberID = member.id
             statusMessage = "\(member.displayName) をホストにしました。"
-        } catch let error as RoomServiceError {
-            errorMessage = error.errorDescription
         } catch {
-            errorMessage = mapGenericError(error)
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -274,13 +276,13 @@ final class RoomViewModel {
         do {
             let roomID: String
             if isCreate {
-                roomID = try await RoomService.createRoom(
+                roomID = try await repository.createRoom(
                     name: draftRoomName,
                     password: optionalPassword,
                     hostMemberID: memberID
                 )
             } else {
-                roomID = try await RoomService.joinRoom(
+                roomID = try await repository.joinRoom(
                     name: draftRoomName,
                     password: optionalPassword,
                     passwordPolicy: passwordPolicy
@@ -291,9 +293,9 @@ final class RoomViewModel {
                 isLeavingIntentionally = true
                 stopAllObservation()
                 if wasHost {
-                    try? await RoomService.dissolveRoom(roomID: previousRoomID)
+                    try? await repository.dissolveRoom(roomID: previousRoomID)
                 } else {
-                    try? await RoomService.leaveMember(roomID: previousRoomID, memberID: memberID)
+                    try? await repository.leaveMember(roomID: previousRoomID, memberID: memberID)
                 }
                 isLeavingIntentionally = false
             }
@@ -304,10 +306,8 @@ final class RoomViewModel {
             }
             await registerCurrentMembership()
             startRoomObservation(for: roomID)
-        } catch let error as RoomServiceError {
-            errorMessage = error.errorDescription
         } catch {
-            errorMessage = mapGenericError(error)
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -315,12 +315,12 @@ final class RoomViewModel {
         currentRoomID = roomID
         draftRoomName = roomID
         draftPassword = ""
-        RoomSessionStore.saveCurrentRoomID(roomID)
+        RoomSessionStore.saveCurrentRoomID(roomID, defaults: defaults)
         onRoomChange?(roomID)
     }
 
     private func moveToGuestLocally(status: String) {
-        let guestID = RoomSessionStore.assignGuestRoomID()
+        let guestID = RoomSessionStore.assignGuestRoomID(defaults: defaults)
         currentRoomID = guestID
         draftRoomName = ""
         draftPassword = ""
@@ -341,7 +341,7 @@ final class RoomViewModel {
         guard !isOnGuestRoom else { return }
         let profile = memberProfileProvider()
         do {
-            try await RoomService.upsertMember(
+            try await repository.upsertMember(
                 roomID: currentRoomID,
                 memberID: memberID,
                 nickname: profile.nickname,
@@ -349,7 +349,7 @@ final class RoomViewModel {
                 avatarURL: profile.avatarURL,
                 avatarEmoji: profile.avatarEmoji
             )
-            try await RoomService.ensureHostIfNeeded(
+            try await repository.ensureHostIfNeeded(
                 roomID: currentRoomID,
                 candidateMemberID: memberID
             )
@@ -358,7 +358,7 @@ final class RoomViewModel {
                 print("[Room] register membership failed: \(error.localizedDescription)")
             #endif
             if errorMessage == nil {
-                errorMessage = mapGenericError(error)
+                errorMessage = error.localizedDescription
             }
         }
     }
@@ -376,13 +376,13 @@ final class RoomViewModel {
         pendingMembersSnapshot = true
         pendingMetaSnapshot = true
 
-        stopMembersListening = RoomService.startListeningMembers(roomID: roomID) { [weak self] list in
+        stopMembersListening = repository.startListeningMembers(roomID: roomID) { [weak self] list in
             guard let self else { return }
             self.members = list
             self.pendingMembersSnapshot = false
             self.refreshMembersLoadingState()
         }
-        stopMetaListening = RoomService.startListeningMeta(roomID: roomID) { [weak self] meta in
+        stopMetaListening = repository.startListeningMeta(roomID: roomID) { [weak self] meta in
             guard let self else { return }
             self.pendingMetaSnapshot = false
             if let meta {
@@ -406,17 +406,6 @@ final class RoomViewModel {
         stopMetaListening = nil
         pendingMembersSnapshot = false
         pendingMetaSnapshot = false
-    }
-
-    private func mapGenericError(_ error: Error) -> String {
-        let text = error.localizedDescription.lowercased()
-        if text.contains("permission") {
-            return RoomServiceError.permissionDenied.errorDescription ?? error.localizedDescription
-        }
-        if text.contains("offline") || text.contains("network") {
-            return RoomServiceError.networkUnavailable.errorDescription ?? error.localizedDescription
-        }
-        return error.localizedDescription
     }
 }
 
