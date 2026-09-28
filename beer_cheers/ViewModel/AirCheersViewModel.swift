@@ -36,6 +36,8 @@ final class AirCheersViewModel {
     private let audio: ClinkAudioPlayer
     private let haptics: CheersHapticsPlayer
     private let remote: CheersRemoteSync
+    /// 画面側が監視を望んでいるか。ゲストルーム中は要求があっても実際には監視しない。
+    private var isRemoteListeningRequested = false
 
     // MARK: - Init
 
@@ -89,26 +91,30 @@ final class AirCheersViewModel {
     }
 
     func startRemoteTriggerListening() {
-        remote.startListening(roomID: roomID) { [weak self] in
-            self?.triggerCheers()
-        }
+        isRemoteListeningRequested = true
+        applyRemoteListening()
     }
 
     func stopRemoteTriggerListening() {
+        isRemoteListeningRequested = false
         remote.stopListening()
     }
 
-    /// アカウント画面からの部屋切替。監視中なら一旦停止→新しい部屋で再開する。
+    /// アカウント画面からの部屋切替。監視を要求されていれば新しい部屋で張り直す。
     func switchRoom(to newRoomID: String) {
         let trimmed = newRoomID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != roomID else { return }
-        let wasListening = remote.currentRoomID != nil
-        if wasListening {
-            stopRemoteTriggerListening()
-        }
+        remote.stopListening()
         roomID = trimmed
-        if wasListening {
-            startRemoteTriggerListening()
+        applyRemoteListening()
+    }
+
+    /// ゲストルームは自分しかいないため、監視も送信もしない（Realtime Database の無駄な読み書きを避ける）。
+    /// 送信は `CheersRemoteSync.publishLocalCheers` が監視中のルームにだけ行うので、監視を止めれば送信も止まる。
+    private func applyRemoteListening() {
+        guard isRemoteListeningRequested, !RoomSessionStore.isGuestRoomID(roomID) else { return }
+        remote.startListening(roomID: roomID) { [weak self] in
+            self?.triggerCheers()
         }
     }
 
