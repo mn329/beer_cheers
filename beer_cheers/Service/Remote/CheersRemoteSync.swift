@@ -63,11 +63,16 @@ final class CheersRemoteSync {
     }
 
     func stopListening() {
-        if let ref = triggerRef, let handle = triggerHandle {
-            ref.removeObserver(withHandle: handle)
+        if let ref = triggerRef {
+            if let handle = triggerHandle {
+                ref.removeObserver(withHandle: handle)
+            }
+            // keepSynced はオブザーバーを外しても同期し続けるため、明示的に切らないと抜けたルームの通信が残る
+            ref.keepSynced(false)
         }
         triggerHandle = nil
         triggerRef = nil
+        currentRoomID = nil
         didPrimeListener = false
         lastSignature = nil
         pendingEchoSignature = nil
