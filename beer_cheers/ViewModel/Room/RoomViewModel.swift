@@ -28,6 +28,8 @@ final class RoomViewModel {
     private(set) var currentRoomID: String
     private(set) var members: [RoomMember] = []
     private(set) var hostMemberID: String?
+    /// 最近入ったルーム（新しい順）。
+    private(set) var recentRoomIDs: [String]
 
     /// 部屋が変わったときに `AirCheersViewModel.switchRoom` へ橋渡しする。
     var onRoomChange: ((String) -> Void)?
@@ -58,7 +60,25 @@ final class RoomViewModel {
         self.defaults = defaults
         memberID = RoomSessionStore.stableMemberID(defaults: defaults)
         currentRoomID = RoomSessionStore.loadCurrentRoomID(defaults: defaults)
+        recentRoomIDs = RecentRoomStore.load(defaults: defaults)
         draftRoomName = RoomSessionStore.isGuestRoomID(currentRoomID) ? "" : currentRoomID
+    }
+
+    /// 履歴のうち、いま入っているルーム以外。
+    var recentRoomsToShow: [String] {
+        recentRoomIDs.filter { $0 != currentRoomID }
+    }
+
+    /// 履歴から選んだルームを参加フォームに入れる（参加は確認ダイアログの後）。
+    func prepareJoin(recentRoomID: String) {
+        mode = .join
+        draftRoomName = recentRoomID
+        draftPassword = ""
+        errorMessage = nil
+    }
+
+    func removeRecentRoom(_ roomID: String) {
+        recentRoomIDs = RecentRoomStore.remove(roomID, defaults: defaults)
     }
 
     var isOnGuestRoom: Bool { RoomSessionStore.isGuestRoomID(currentRoomID) }
@@ -329,6 +349,7 @@ final class RoomViewModel {
         draftRoomName = roomID
         draftPassword = ""
         RoomSessionStore.saveCurrentRoomID(roomID, defaults: defaults)
+        recentRoomIDs = RecentRoomStore.record(roomID, defaults: defaults)
         onRoomChange?(roomID)
     }
 

@@ -32,6 +32,9 @@ struct RoomView: View {
                             focusedField: $focusedField,
                             onJoinRequested: { showJoinConfirm = true }
                         )
+                        if !viewModel.recentRoomsToShow.isEmpty {
+                            recentRoomsCard
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -205,6 +208,56 @@ struct RoomView: View {
             }
         }
         .padding(16)
+        .background(GlassCardBackground())
+    }
+
+    private var recentRoomsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionTitle(text: "最近のルーム", systemImage: "clock.arrow.circlepath")
+            ForEach(viewModel.recentRoomsToShow, id: \.self) { roomID in
+                HStack(spacing: 8) {
+                    Button {
+                        focusedField = nil
+                        viewModel.prepareJoin(recentRoomID: roomID)
+                        showJoinConfirm = true
+                    } label: {
+                        HStack {
+                            Text(roomID)
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(AccountContentStyle.primary)
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                            Image(systemName: "arrow.right.circle.fill")
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(AccountContentStyle.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.22))
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(roomID) に参加")
+
+                    Button {
+                        viewModel.removeRecentRoom(roomID)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AccountContentStyle.secondary)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(roomID) を履歴から削除")
+                }
+                .disabled(viewModel.isLoading)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(GlassCardBackground())
     }
 
