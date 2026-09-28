@@ -156,6 +156,40 @@ final class RoomViewModelTests {
         #expect(viewModel.isCurrentUserHost)
     }
 
+    // MARK: - 再接続
+
+    /// 再登録は Task で走るため、MainActor に順番を譲りながら条件が満たされるのを待つ。
+    private func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<100 where !condition() {
+            await Task.yield()
+        }
+    }
+
+    @Test func reconnectingAfterDisconnectRegistersMemberAgain() async {
+        viewModel.resumeMembershipIfNeeded()
+        await join("weekend")
+        repository.emitConnection(false)
+        repository.emitConnection(true)
+        #expect(repository.upsertCount(roomID: "weekend", memberID: memberID) == 1)
+
+        repository.emitConnection(false)
+        repository.emitConnection(true)
+        await waitUntil { repository.upsertCount(roomID: "weekend", memberID: memberID) == 2 }
+
+        #expect(repository.upsertCount(roomID: "weekend", memberID: memberID) == 2)
+    }
+
+    @Test func reconnectingInGuestRoomDoesNotRegister() async {
+        viewModel.resumeMembershipIfNeeded()
+        repository.emitConnection(true)
+
+        repository.emitConnection(false)
+        repository.emitConnection(true)
+        await waitUntil { !repository.calls.isEmpty }
+
+        #expect(repository.calls.isEmpty)
+    }
+
     // MARK: - ホスト譲渡
 
     @Test func hostCanTransferHostToAnotherMember() async {
