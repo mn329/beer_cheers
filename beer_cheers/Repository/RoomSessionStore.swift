@@ -62,7 +62,7 @@ enum RoomSessionStore {
     }
 
     private static func resolvedRoomID(_ candidate: String, defaults: UserDefaults) -> String {
-        if candidate == CheersRemoteSync.defaultRoomID {
+        if candidate == CheersRemoteSync.legacySharedRoomID {
             return assignGuestRoomID(defaults: defaults)
         }
         defaults.set(candidate, forKey: DefaultsKey.currentRoomID)

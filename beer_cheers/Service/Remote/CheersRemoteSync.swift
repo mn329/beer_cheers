@@ -16,8 +16,8 @@ import Foundation
 
 @MainActor
 final class CheersRemoteSync {
-    /// 互換用の旧既定名。新規起動では使わず、ゲスト用ランダム ID を割り当てる。
-    static let defaultRoomID = "test_room"
+    /// 旧バージョンで全端末が共有していた既定ルーム名。保存済みならゲスト用ランダム ID へ置き換える。
+    static let legacySharedRoomID = "test_room"
 
     /// ローカル衝突からの `setValue` スパム防止クールダウン（秒）
     private let writeCooldown: TimeInterval = 1.5

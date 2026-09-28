@@ -39,7 +39,7 @@ final class AirCheersViewModel {
         haptics: CheersHapticsPlayer = .init(),
         remote: CheersRemoteSync = .init(),
         effects: CheersEffectsController = .init(),
-        roomID: String = CheersRemoteSync.defaultRoomID
+        roomID: String = RoomSessionStore.loadCurrentRoomID()
     ) {
         self.motionDetector = motionDetector
         self.audio = audio
