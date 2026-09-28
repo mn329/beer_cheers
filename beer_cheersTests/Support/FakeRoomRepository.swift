@@ -83,7 +83,22 @@ final class FakeRoomRepository: RoomRepositorying {
         return { [weak self] in self?.metaListeners[roomID] = nil }
     }
 
+    private var connectionListener: (@MainActor (Bool) -> Void)?
+
+    func startListeningConnection(onChange: @escaping @MainActor (Bool) -> Void) -> () -> Void {
+        connectionListener = onChange
+        return { [weak self] in self?.connectionListener = nil }
+    }
+
     // MARK: - テストからの発火
+
+    func emitConnection(_ isConnected: Bool) {
+        connectionListener?(isConnected)
+    }
+
+    func upsertCount(roomID: String, memberID: String) -> Int {
+        calls.filter { $0 == .upsertMember(roomID: roomID, memberID: memberID) }.count
+    }
 
     func isListening(roomID: String) -> Bool {
         membersListeners[roomID] != nil && metaListeners[roomID] != nil

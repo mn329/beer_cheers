@@ -28,6 +28,8 @@ protocol RoomRepositorying {
     func startListeningMembers(roomID: String, onUpdate: @escaping @MainActor ([RoomMember]) -> Void) -> () -> Void
     /// `meta` を監視する。削除されたら `onUpdate(nil)`。戻り値のクロージャで停止する。
     func startListeningMeta(roomID: String, onUpdate: @escaping @MainActor (RoomMeta?) -> Void) -> () -> Void
+    /// サーバーとの接続状態を監視する。戻り値のクロージャで停止する。
+    func startListeningConnection(onChange: @escaping @MainActor (Bool) -> Void) -> () -> Void
 }
 
 struct RoomRepository: RoomRepositorying {
@@ -94,41 +96,51 @@ struct RoomRepository: RoomRepositorying {
     }
 
     /// ホスト不在の旧ルームなら、候補者をホストに設定する。
+    /// 同時に入室した複数人が互いに上書きしないよう、`hostMemberID` をトランザクションで書く。
     func ensureHostIfNeeded(roomID: String, candidateMemberID: String) async throws {
         try Self.ensureFirebaseConfigured()
         let safeRoom = try RoomID.normalize(roomID)
-        let ref = Self.metaReference(for: safeRoom)
-        let snapshot = try await Self.getSnapshot(ref)
-        guard snapshot.exists() else { return }
-        guard var meta = RoomMeta.fromFirebaseValue(snapshot.value, fallbackName: safeRoom) else { return }
-        if let existing = meta.hostMemberID, !existing.isEmpty { return }
-        meta.hostMemberID = candidateMemberID
-        try await Self.setValue(ref, meta.asFirebaseValue())
+        // meta の無いレガシー部屋に hostMemberID だけ作るとルールの検証で拒否されるため、先に存在を確かめる
+        guard try await Self.getSnapshot(Self.metaReference(for: safeRoom)).exists() else { return }
+        _ = try await Self.runTransaction(Self.hostReference(for: safeRoom)) { current in
+            if let existing = current.value as? String, !existing.isEmpty {
+                return TransactionResult.abort()
+            }
+            current.value = candidateMemberID
+            return TransactionResult.success(withValue: current)
+        }
     }
 
     /// ホストを別メンバーへ譲渡する（現ホストのみ）。
+    /// 読んでから書くまでに他の人が譲渡しても上書きしないよう、トランザクションで現ホストを確かめて書く。
     func transferHost(
         roomID: String,
         currentHostMemberID: String,
         newHostMemberID: String
     ) async throws {
         try Self.ensureFirebaseConfigured()
-        let safeRoom = try RoomID.normalize(roomID)
-        let ref = Self.metaReference(for: safeRoom)
-        let snapshot = try await Self.getSnapshot(ref)
-        guard snapshot.exists(),
-              var meta = RoomMeta.fromFirebaseValue(snapshot.value, fallbackName: safeRoom)
-        else {
-            throw RoomRepositoryError.roomNotFound
-        }
-        guard meta.hostMemberID == currentHostMemberID else {
-            throw RoomRepositoryError.notHost
-        }
         guard newHostMemberID != currentHostMemberID, !newHostMemberID.isEmpty else {
             throw RoomRepositoryError.invalidHostCandidate
         }
-        meta.hostMemberID = newHostMemberID
-        try await Self.setValue(ref, meta.asFirebaseValue())
+        let safeRoom = try RoomID.normalize(roomID)
+        guard try await Self.getSnapshot(Self.metaReference(for: safeRoom)).exists() else {
+            throw RoomRepositoryError.roomNotFound
+        }
+        let result = try await Self.runTransaction(Self.hostReference(for: safeRoom)) { current in
+            // ローカルキャッシュが無い初回は値が空で呼ばれる。空のまま返すとサーバー値と食い違い、実際の値で再実行される
+            guard let host = current.value as? String else {
+                return TransactionResult.success(withValue: current)
+            }
+            guard host == currentHostMemberID else {
+                return TransactionResult.abort()
+            }
+            current.value = newHostMemberID
+            return TransactionResult.success(withValue: current)
+        }
+        // 実際にホストが空だった場合も空のまま確定するため、確定後の値で判定する
+        guard result?.value as? String == newHostMemberID else {
+            throw RoomRepositoryError.notHost
+        }
     }
 
     /// ルーム全体（meta / members / trigger）を削除して解散する。
@@ -158,16 +170,23 @@ struct RoomRepository: RoomRepositorying {
             avatarEmoji: avatarEmoji,
             joinedAt: Date().timeIntervalSince1970
         )
-        try await Self.setValue(
-            Self.memberReference(roomID: safeRoom, memberID: memberID),
-            member.asFirebaseValue()
-        )
+        let ref = Self.memberReference(roomID: safeRoom, memberID: memberID)
+        try await Self.setValue(ref, member.asFirebaseValue())
+        // 「閉じる」を押さずにアプリを終了・圏外になった人がメンバー一覧に残り続けないようにする。
+        // 切断時操作は一度実行されると消えるため、再接続のたびに upsertMember し直す（RoomViewModel 側）
+        do {
+            try await RealtimeDatabaseClient.removeOnDisconnect(ref)
+        } catch {
+            throw mapRoomDatabaseError(error)
+        }
     }
 
     func leaveMember(roomID: String, memberID: String) async throws {
         try Self.ensureFirebaseConfigured()
         let safeRoom = try RoomID.normalize(roomID)
-        try await Self.removeValue(Self.memberReference(roomID: safeRoom, memberID: memberID))
+        let ref = Self.memberReference(roomID: safeRoom, memberID: memberID)
+        RealtimeDatabaseClient.cancelDisconnectOperations(ref)
+        try await Self.removeValue(ref)
     }
 
     // MARK: - Listening
@@ -226,7 +245,27 @@ struct RoomRepository: RoomRepositorying {
         }
     }
 
+    func startListeningConnection(onChange: @escaping @MainActor (Bool) -> Void) -> () -> Void {
+        guard FirebaseBootstrap.isConfigured else { return {} }
+        return RealtimeDatabaseClient.observeConnection(onChange: onChange)
+    }
+
     // MARK: - Private
+
+    private static func runTransaction(
+        _ ref: DatabaseReference,
+        update: @escaping @Sendable (MutableData) -> TransactionResult
+    ) async throws -> DataSnapshot? {
+        do {
+            return try await RealtimeDatabaseClient.runTransaction(ref, update: update)
+        } catch {
+            throw mapRoomDatabaseError(error)
+        }
+    }
+
+    private static func hostReference(for roomID: String) -> DatabaseReference {
+        metaReference(for: roomID).child("hostMemberID")
+    }
 
     private static func roomReference(for roomID: String) -> DatabaseReference {
         Database.database().reference(withPath: "rooms/\(roomID)")

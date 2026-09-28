@@ -41,6 +41,10 @@ final class RoomViewModel {
     private let defaults: UserDefaults
     private var stopMembersListening: (() -> Void)?
     private var stopMetaListening: (() -> Void)?
+    private var stopConnectionListening: (() -> Void)?
+    /// 起動直後の最初の接続では再登録しない（`resumeMembershipIfNeeded` で登録済みのため）。
+    private var hasConnectedOnce = false
+    private var hasObservedDisconnect = false
     private var pendingMembersSnapshot = false
     private var pendingMetaSnapshot = false
     private let memberID: String
@@ -88,6 +92,7 @@ final class RoomViewModel {
 
     func resumeMembershipIfNeeded() {
         guard usesRemoteSync else { return }
+        startConnectionObservationIfNeeded()
         guard !isOnGuestRoom else {
             stopAllObservation()
             members = []
@@ -393,6 +398,27 @@ final class RoomViewModel {
                 self.handleRemoteRoomDissolved()
             }
         }
+    }
+
+    /// 切断されるとサーバーが自分のメンバー情報を消すため、再接続したら登録し直す。
+    private func startConnectionObservationIfNeeded() {
+        guard stopConnectionListening == nil else { return }
+        stopConnectionListening = repository.startListeningConnection { [weak self] isConnected in
+            self?.handleConnectionChange(isConnected: isConnected)
+        }
+    }
+
+    private func handleConnectionChange(isConnected: Bool) {
+        guard isConnected else {
+            // 起動直後は接続前の false が先に届くため、一度つながってからの切断だけを数える
+            if hasConnectedOnce { hasObservedDisconnect = true }
+            return
+        }
+        hasConnectedOnce = true
+        guard hasObservedDisconnect else { return }
+        hasObservedDisconnect = false
+        guard !isOnGuestRoom, !isLeavingIntentionally else { return }
+        Task { await registerCurrentMembership() }
     }
 
     private func refreshMembersLoadingState() {
