@@ -8,7 +8,8 @@
 import FirebaseDatabase
 import Foundation
 
-protocol RoomRepositorying: Sendable {
+/// `RoomViewModel` が依存するルーム操作。テストでは Firebase を使わない実装に差し替える。
+protocol RoomRepositorying {
     func createRoom(name: String, password: String?, hostMemberID: String) async throws -> String
     func joinRoom(name: String, password: String?, passwordPolicy: RoomJoinPasswordPolicy) async throws -> String
     func ensureHostIfNeeded(roomID: String, candidateMemberID: String) async throws
@@ -23,60 +24,57 @@ protocol RoomRepositorying: Sendable {
         avatarEmoji: String
     ) async throws
     func leaveMember(roomID: String, memberID: String) async throws
+    /// `members` 配下を監視する。戻り値のクロージャで停止する。
+    func startListeningMembers(roomID: String, onUpdate: @escaping @MainActor ([RoomMember]) -> Void) -> () -> Void
+    /// `meta` を監視する。削除されたら `onUpdate(nil)`。戻り値のクロージャで停止する。
+    func startListeningMeta(roomID: String, onUpdate: @escaping @MainActor (RoomMeta?) -> Void) -> () -> Void
 }
 
-enum RoomRepository {
-    /// ルーム名を path 用 ID として正規化する。
-    static func normalizeRoomID(_ raw: String) throws -> String {
-        try RoomID.normalize(raw)
-    }
-
+struct RoomRepository: RoomRepositorying {
     /// ルームを新規作成する。作成者がホストになる。
-    static func createRoom(
+    func createRoom(
         name: String,
         password: String?,
         hostMemberID: String
     ) async throws -> String {
-        try ensureFirebaseConfigured()
-        let roomID = try normalizeRoomID(name)
-        let ref = metaReference(for: roomID)
+        try Self.ensureFirebaseConfigured()
+        let roomID = try RoomID.normalize(name)
+        let ref = Self.metaReference(for: roomID)
 
-        let snapshot = try await getSnapshot(ref)
+        let snapshot = try await Self.getSnapshot(ref)
         if snapshot.exists() {
             throw RoomRepositoryError.roomAlreadyExists
         }
 
-        let normalizedPassword = normalizedOptionalPassword(password)
         let meta = RoomMeta(
             name: roomID,
-            password: normalizedPassword,
+            password: Self.normalizedOptionalPassword(password),
             createdAt: Date().timeIntervalSince1970,
             hostMemberID: hostMemberID
         )
-        try await setValue(ref, meta.asFirebaseValue())
+        try await Self.setValue(ref, meta.asFirebaseValue())
         return roomID
     }
 
     /// 既存ルームに参加する。
     /// - `requireMatch`: meta 無しレガシー部屋はパスワードなしなら参加可。パスワード付きは照合。
     /// - `inviteURL`: meta 必須。パスワードは見ない。
-    static func joinRoom(
+    func joinRoom(
         name: String,
         password: String?,
-        passwordPolicy: RoomJoinPasswordPolicy = .requireMatch
+        passwordPolicy: RoomJoinPasswordPolicy
     ) async throws -> String {
-        try ensureFirebaseConfigured()
-        let roomID = try normalizeRoomID(name)
-        let ref = metaReference(for: roomID)
-
-        let snapshot = try await getSnapshot(ref)
+        try Self.ensureFirebaseConfigured()
+        let roomID = try RoomID.normalize(name)
+        let snapshot = try await Self.getSnapshot(Self.metaReference(for: roomID))
         if !snapshot.exists() {
             switch passwordPolicy {
             case .inviteURL:
                 throw RoomRepositoryError.roomNotFound
             case .requireMatch:
-                let entered = (password ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                guard entered.isEmpty else { throw RoomRepositoryError.roomNotFound }
+                guard Self.normalizedOptionalPassword(password) == nil else {
+                    throw RoomRepositoryError.roomNotFound
+                }
                 return roomID
             }
         }
@@ -96,28 +94,28 @@ enum RoomRepository {
     }
 
     /// ホスト不在の旧ルームなら、候補者をホストに設定する。
-    static func ensureHostIfNeeded(roomID: String, candidateMemberID: String) async throws {
-        try ensureFirebaseConfigured()
-        let safeRoom = try normalizeRoomID(roomID)
-        let ref = metaReference(for: safeRoom)
-        let snapshot = try await getSnapshot(ref)
+    func ensureHostIfNeeded(roomID: String, candidateMemberID: String) async throws {
+        try Self.ensureFirebaseConfigured()
+        let safeRoom = try RoomID.normalize(roomID)
+        let ref = Self.metaReference(for: safeRoom)
+        let snapshot = try await Self.getSnapshot(ref)
         guard snapshot.exists() else { return }
         guard var meta = RoomMeta.fromFirebaseValue(snapshot.value, fallbackName: safeRoom) else { return }
         if let existing = meta.hostMemberID, !existing.isEmpty { return }
         meta.hostMemberID = candidateMemberID
-        try await setValue(ref, meta.asFirebaseValue())
+        try await Self.setValue(ref, meta.asFirebaseValue())
     }
 
     /// ホストを別メンバーへ譲渡する（現ホストのみ）。
-    static func transferHost(
+    func transferHost(
         roomID: String,
         currentHostMemberID: String,
         newHostMemberID: String
     ) async throws {
-        try ensureFirebaseConfigured()
-        let safeRoom = try normalizeRoomID(roomID)
-        let ref = metaReference(for: safeRoom)
-        let snapshot = try await getSnapshot(ref)
+        try Self.ensureFirebaseConfigured()
+        let safeRoom = try RoomID.normalize(roomID)
+        let ref = Self.metaReference(for: safeRoom)
+        let snapshot = try await Self.getSnapshot(ref)
         guard snapshot.exists(),
               var meta = RoomMeta.fromFirebaseValue(snapshot.value, fallbackName: safeRoom)
         else {
@@ -130,19 +128,19 @@ enum RoomRepository {
             throw RoomRepositoryError.invalidHostCandidate
         }
         meta.hostMemberID = newHostMemberID
-        try await setValue(ref, meta.asFirebaseValue())
+        try await Self.setValue(ref, meta.asFirebaseValue())
     }
 
     /// ルーム全体（meta / members / trigger）を削除して解散する。
-    static func dissolveRoom(roomID: String) async throws {
-        try ensureFirebaseConfigured()
-        let safeRoom = try normalizeRoomID(roomID)
-        try await removeValue(roomReference(for: safeRoom))
+    func dissolveRoom(roomID: String) async throws {
+        try Self.ensureFirebaseConfigured()
+        let safeRoom = try RoomID.normalize(roomID)
+        try await Self.removeValue(Self.roomReference(for: safeRoom))
     }
 
     // MARK: - Members
 
-    static func upsertMember(
+    func upsertMember(
         roomID: String,
         memberID: String,
         nickname: String,
@@ -150,8 +148,8 @@ enum RoomRepository {
         avatarURL: String?,
         avatarEmoji: String
     ) async throws {
-        try ensureFirebaseConfigured()
-        let safeRoom = try normalizeRoomID(roomID)
+        try Self.ensureFirebaseConfigured()
+        let safeRoom = try RoomID.normalize(roomID)
         let member = RoomMember(
             id: memberID,
             nickname: nickname,
@@ -160,31 +158,30 @@ enum RoomRepository {
             avatarEmoji: avatarEmoji,
             joinedAt: Date().timeIntervalSince1970
         )
-        try await setValue(memberReference(roomID: safeRoom, memberID: memberID), member.asFirebaseValue())
+        try await Self.setValue(
+            Self.memberReference(roomID: safeRoom, memberID: memberID),
+            member.asFirebaseValue()
+        )
     }
 
-    static func leaveMember(roomID: String, memberID: String) async throws {
-        try ensureFirebaseConfigured()
-        let safeRoom = try normalizeRoomID(roomID)
-        try await removeValue(memberReference(roomID: safeRoom, memberID: memberID))
+    func leaveMember(roomID: String, memberID: String) async throws {
+        try Self.ensureFirebaseConfigured()
+        let safeRoom = try RoomID.normalize(roomID)
+        try await Self.removeValue(Self.memberReference(roomID: safeRoom, memberID: memberID))
     }
 
-    /// `members` 配下を監視する。戻り値のクロージャで停止する。
-    @MainActor
-    static func startListeningMembers(
+    // MARK: - Listening
+
+    func startListeningMembers(
         roomID: String,
         onUpdate: @escaping @MainActor ([RoomMember]) -> Void
     ) -> () -> Void {
-        guard FirebaseBootstrap.isConfigured else {
-            onUpdate([])
-            return {}
-        }
-        guard let safeRoom = try? normalizeRoomID(roomID) else {
+        guard FirebaseBootstrap.isConfigured, let safeRoom = try? RoomID.normalize(roomID) else {
             onUpdate([])
             return {}
         }
 
-        let ref = membersReference(for: safeRoom)
+        let ref = Self.membersReference(for: safeRoom)
         ref.keepSynced(true)
         let handle = ref.observe(.value) { snapshot in
             var members: [RoomMember] = []
@@ -193,10 +190,6 @@ enum RoomRepository {
                       let member = RoomMember.fromFirebaseValue(id: childSnap.key, value: childSnap.value)
                 else { continue }
                 members.append(member)
-            }
-            members.sort {
-                if $0.joinedAt == $1.joinedAt { return $0.displayName < $1.displayName }
-                return $0.joinedAt < $1.joinedAt
             }
             Task { @MainActor in
                 onUpdate(members)
@@ -208,30 +201,21 @@ enum RoomRepository {
         }
     }
 
-    /// `meta` を監視する。削除されたら `onUpdate(nil)`。
-    @MainActor
-    static func startListeningMeta(
+    func startListeningMeta(
         roomID: String,
         onUpdate: @escaping @MainActor (RoomMeta?) -> Void
     ) -> () -> Void {
-        guard FirebaseBootstrap.isConfigured else {
-            onUpdate(nil)
-            return {}
-        }
-        guard let safeRoom = try? normalizeRoomID(roomID) else {
+        guard FirebaseBootstrap.isConfigured, let safeRoom = try? RoomID.normalize(roomID) else {
             onUpdate(nil)
             return {}
         }
 
-        let ref = metaReference(for: safeRoom)
+        let ref = Self.metaReference(for: safeRoom)
         ref.keepSynced(true)
         let handle = ref.observe(.value) { snapshot in
-            let meta: RoomMeta?
-            if snapshot.exists() {
-                meta = RoomMeta.fromFirebaseValue(snapshot.value, fallbackName: safeRoom)
-            } else {
-                meta = nil
-            }
+            let meta = snapshot.exists()
+                ? RoomMeta.fromFirebaseValue(snapshot.value, fallbackName: safeRoom)
+                : nil
             Task { @MainActor in
                 onUpdate(meta)
             }
@@ -278,8 +262,6 @@ enum RoomRepository {
                 timeout: .seconds(12),
                 timeoutError: RoomRepositoryError.networkUnavailable
             )
-        } catch let error as RoomRepositoryError {
-            throw error
         } catch {
             throw mapRoomDatabaseError(error)
         }
@@ -288,8 +270,6 @@ enum RoomRepository {
     private static func setValue(_ ref: DatabaseReference, _ value: Any) async throws {
         do {
             try await RealtimeDatabaseClient.setValue(ref, value)
-        } catch let error as RoomRepositoryError {
-            throw error
         } catch {
             throw mapRoomDatabaseError(error)
         }
@@ -298,21 +278,17 @@ enum RoomRepository {
     private static func removeValue(_ ref: DatabaseReference) async throws {
         do {
             try await RealtimeDatabaseClient.removeValue(ref)
-        } catch let error as RoomRepositoryError {
-            throw error
         } catch {
             throw mapRoomDatabaseError(error)
         }
     }
 }
 
-/// 移行期間用の別名（既存呼び出しを段階的に置換するため）。
-typealias RoomService = RoomRepository
-
-/// Firebase コールバックからも呼べるよう、ファイルスコープの nonisolated にする。
-nonisolated private func mapRoomDatabaseError(_ error: Error) -> Error {
+/// Firebase の生エラーを画面に出せる `RoomRepositoryError` に寄せる。判別できないものはそのまま返す。
+nonisolated func mapRoomDatabaseError(_ error: Error) -> Error {
+    if error is RoomRepositoryError { return error }
     let text = error.localizedDescription.lowercased()
-    if text.contains("permission") || text.contains("permission_denied") {
+    if text.contains("permission") {
         return RoomRepositoryError.permissionDenied
     }
     if text.contains("offline")

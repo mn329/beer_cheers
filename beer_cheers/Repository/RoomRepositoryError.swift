@@ -33,7 +33,7 @@ nonisolated enum RoomRepositoryError: LocalizedError, Equatable, Sendable {
         case .networkUnavailable:
             "ネットワークに接続できないため、ルーム情報を取得できませんでした。通信環境を確認して再度お試しください。"
         case .permissionDenied:
-            "データベースへのアクセスが拒否されました。Firebase の Realtime Database ルールで rooms の読み書きを許可するか、アカウントでサインインしてから再度お試しください。"
+            "ルームの操作が許可されませんでした。ルーム名やプロフィールの内容を確認して、もう一度お試しください。"
         case .notHost:
             "ホストだけが操作できます。"
         case .invalidHostCandidate:
@@ -41,6 +41,3 @@ nonisolated enum RoomRepositoryError: LocalizedError, Equatable, Sendable {
         }
     }
 }
-
-/// 移行期間用の別名。
-typealias RoomServiceError = RoomRepositoryError
