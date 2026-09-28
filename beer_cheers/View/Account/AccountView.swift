@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AccountView: View {
     @Bindable var viewModel: AccountViewModel
+    var onShowTutorial: () -> Void
 
     var body: some View {
         ZStack {
@@ -38,7 +39,7 @@ struct AccountView: View {
                             .padding(.horizontal, 4)
                     }
 
-                    AboutSection()
+                    AboutSection(onShowTutorial: onShowTutorial)
                 }
             }
             .contentMargins(
@@ -180,6 +181,6 @@ struct AccountEditView: View {
 
 #Preview {
     NavigationStack {
-        AccountView(viewModel: AccountViewModel())
+        AccountView(viewModel: AccountViewModel(), onShowTutorial: {})
     }
 }

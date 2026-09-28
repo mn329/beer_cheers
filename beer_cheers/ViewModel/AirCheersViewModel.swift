@@ -24,6 +24,12 @@ final class AirCheersViewModel {
     /// 現在接続中のルーム ID（アカウント画面で切替可能）
     private(set) var roomID: String
 
+    /// この端末（または Watch）で起きた乾杯の回数。リモート受信分は含めない。
+    private(set) var localCheersCount = 0
+
+    /// ルーム参加中にチュートリアルを見返したとき、練習の乾杯が仲間へ届かないよう送信を止める。
+    var isPracticeMode = false
+
     // MARK: - Services
 
     private let motionDetector: MotionImpactDetector
@@ -119,6 +125,8 @@ final class AirCheersViewModel {
 
     private func playCheersLocallyAndPublish() {
         triggerCheers()
+        localCheersCount += 1
+        guard !isPracticeMode else { return }
         remote.publishLocalCheers()
     }
 

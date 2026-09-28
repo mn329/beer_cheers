@@ -4,7 +4,7 @@
 //
 //  起動時に泡パーティクルを生成するあいだローディングを表示し、
 //  初回はスタートフロー、初回サインイン後のみ必須プロフィールをここで表示。
-//  本体表示後のプロフィール設定は RootTabView 側で扱う。
+//  本体表示後のプロフィール設定と使い方ガイドは RootTabView 側で扱う。
 //
 
 import SwiftUI
@@ -64,9 +64,11 @@ struct AppEntryView: View {
             await MainActor.run {
                 cheersViewModel.seedFoamBudPool(buds)
                 // 起動時すでに本体相当（スタート済み）なら、以降はアカウント導線側
-                if StartFlowStore.hasCompleted || AccountAuthService.currentUser != nil {
+                let isExistingUser = StartFlowStore.hasCompleted || AccountAuthService.currentUser != nil
+                if isExistingUser {
                     hasPresentedMain = true
                 }
+                TutorialStore.skipForExistingUserOnce(isExistingUser: isExistingUser)
                 showStartFlow = shouldPresentStartFlow()
                 assetsReady = true
             }
