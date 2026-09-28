@@ -27,8 +27,13 @@ struct RootTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             Tab("乾杯", systemImage: "wineglass.fill", value: TabID.cheers) {
-                CheersView(viewModel: cheersViewModel)
-                    .extendsUnderFloatingTabBar()
+                CheersView(
+                    viewModel: cheersViewModel,
+                    roomStatus: roomViewModel.cheersRoomStatus,
+                    senderName: cheersViewModel.lastCheersSenderID.flatMap(roomViewModel.nickname(ofMemberID:)),
+                    onOpenRoom: { selection = .room }
+                )
+                .extendsUnderFloatingTabBar()
             }
 
             Tab("ルーム", systemImage: "person.2.fill", value: TabID.room) {
