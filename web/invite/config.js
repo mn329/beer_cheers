@@ -3,6 +3,6 @@ window.BeerCheersInviteConfig = {
   hostingHost: "beercheers.web.app",
   appleTeamID: "K3BSAX58ZG",
   bundleID: "com.minato.beer-cheers",
-  // 初回 App Store 公開後に数値 ID を入れて再デプロイする。
-  appStoreID: "",
+  // 変更したら再デプロイする。
+  appStoreID: "6815902541",
 };
