@@ -23,6 +23,9 @@ final class FakeRoomRepository: RoomRepositorying {
     /// 作成・参加時に投げるエラー。nil なら成功して入力名をそのまま ID として返す。
     var roomOperationError: Error?
     var transferHostError: Error?
+    /// `fetchMembers` が返すルーム別のメンバー。未設定のルームは取得失敗として扱う。
+    var fetchedMembers: [String: [RoomMember]] = [:]
+    private(set) var fetchMembersCallCount = 0
 
     private var membersListeners: [String: @MainActor ([RoomMember]) -> Void] = [:]
     private var metaListeners: [String: @MainActor (RoomMeta?) -> Void] = [:]
@@ -65,6 +68,12 @@ final class FakeRoomRepository: RoomRepositorying {
 
     func leaveMember(roomID: String, memberID: String) async throws {
         calls.append(.leaveMember(roomID: roomID, memberID: memberID))
+    }
+
+    func fetchMembers(roomID: String) async throws -> [RoomMember] {
+        fetchMembersCallCount += 1
+        guard let members = fetchedMembers[roomID] else { throw RoomRepositoryError.networkUnavailable }
+        return members
     }
 
     func startListeningMembers(

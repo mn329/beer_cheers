@@ -31,6 +31,12 @@ final class RoomViewModel {
     /// 最近入ったルーム（新しい順）。
     private(set) var recentRoomIDs: [String]
 
+    /// 最近のルームごとの、いま入っているメンバー（取得できたものだけ。未取得は載らない）。
+    private(set) var recentRoomMembers: [String: [RoomMember]] = [:]
+    private var lastRecentMembersFetch: Date?
+    /// ルームタブを開き直すたびに読み直さないための間隔。
+    private let recentMembersFreshness: TimeInterval = 30
+
     /// 部屋が変わったときに `AirCheersViewModel.switchRoom` へ橋渡しする。
     var onRoomChange: ((String) -> Void)?
 
@@ -79,6 +85,29 @@ final class RoomViewModel {
 
     func removeRecentRoom(_ roomID: String) {
         recentRoomIDs = RecentRoomStore.remove(roomID, defaults: defaults)
+        recentRoomMembers[roomID] = nil
+    }
+
+    /// 最近のルームの参加者を 1 回だけ読む。画面表示を待たせず、失敗したルームは何も出さない。
+    func refreshRecentRoomMembers(force: Bool = false) async {
+        guard usesRemoteSync else { return }
+        let rooms = recentRoomsToShow
+        guard !rooms.isEmpty else { return }
+        if !force, let last = lastRecentMembersFetch, Date().timeIntervalSince(last) < recentMembersFreshness {
+            return
+        }
+        lastRecentMembersFetch = Date()
+        // 履歴は最大 5 件。並列に 1 回ずつ読み、遅い・失敗したルームがあっても他を待たせない。
+        let box = RepositoryBox(value: repository)
+        await withTaskGroup(of: (String, [RoomMember]?).self) { group in
+            for roomID in rooms {
+                group.addTask { (roomID, try? await box.value.fetchMembers(roomID: roomID)) }
+            }
+            for await (roomID, members) in group {
+                guard let members else { continue }
+                recentRoomMembers[roomID] = members.sorted { $0.joinedAt < $1.joinedAt }
+            }
+        }
     }
 
     var isOnGuestRoom: Bool { RoomSessionStore.isGuestRoomID(currentRoomID) }
@@ -514,3 +543,8 @@ extension RoomViewModel {
     }
 }
 #endif
+
+/// TaskGroup へ渡すためだけの入れ物。ここから呼ぶのは状態を持たない読み取りだけ。
+private nonisolated struct RepositoryBox: @unchecked Sendable {
+    let value: any RoomRepositorying
+}
