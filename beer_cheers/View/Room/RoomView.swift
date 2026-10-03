@@ -10,6 +10,7 @@ import SwiftUI
 struct RoomView: View {
     @Bindable var viewModel: RoomViewModel
     @FocusState private var focusedField: Field?
+    @State private var recentRoomPage: String?
     @State private var showJoinConfirm = false
     @State private var showCloseConfirm = false
     @State private var showMembersSheet = false
@@ -27,14 +28,14 @@ struct RoomView: View {
                 ScrollView {
                     VStack(spacing: 18) {
                         currentRoomCard
-                        if !viewModel.recentRoomsToShow.isEmpty {
-                            recentRoomsCard
-                        }
                         RoomFormCard(
                             viewModel: viewModel,
                             focusedField: $focusedField,
                             onJoinRequested: { showJoinConfirm = true }
                         )
+                        if !viewModel.recentRoomsToShow.isEmpty {
+                            recentRoomsCard
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -51,6 +52,9 @@ struct RoomView: View {
             .toolbarColorScheme(.light, for: .navigationBar)
             .onAppear {
                 viewModel.resumeMembershipIfNeeded()
+            }
+            .task {
+                await viewModel.refreshRecentRoomMembers()
             }
             .alert("ルームに参加", isPresented: $showJoinConfirm) {
                 Button("参加する") {
@@ -218,17 +222,15 @@ struct RoomView: View {
                 viewModel.prepareJoin(recentRoomID: roomID)
                 showJoinConfirm = true
             } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "person.2.fill")
-                        .font(.footnote)
-                        .foregroundStyle(AccountContentStyle.primary.opacity(0.75))
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(Color.white.opacity(0.35)))
-                    Text(roomID)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(AccountContentStyle.primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(roomID)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(AccountContentStyle.primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        recentRoomMembersLine(roomID)
+                    }
                     Spacer(minLength: 8)
                     Text("参加")
                         .font(.footnote.weight(.bold))
@@ -237,9 +239,8 @@ struct RoomView: View {
                         .padding(.vertical, 6)
                         .background(Capsule(style: .continuous).fill(Color.white.opacity(0.55)))
                 }
-                .padding(.leading, 10)
-                .padding(.trailing, 10)
-                .padding(.vertical, 10)
+                .padding(.leading, 14)
+                .padding(.vertical, 12)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -260,7 +261,6 @@ struct RoomView: View {
             }
             .accessibilityLabel("\(roomID) のメニュー")
         }
-        .padding(.trailing, 2)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.white.opacity(0.22))
@@ -268,13 +268,72 @@ struct RoomView: View {
         .disabled(viewModel.isLoading)
     }
 
-    private var recentRoomsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(text: "最近のルーム", systemImage: "clock.arrow.circlepath")
-            VStack(spacing: 8) {
-                ForEach(viewModel.recentRoomsToShow, id: \.self) { roomID in
-                    recentRoomRow(roomID)
+    /// 履歴ルームにいま入っている人。取得できるまでは何も出さない。
+    @ViewBuilder
+    private func recentRoomMembersLine(_ roomID: String) -> some View {
+        if let members = viewModel.recentRoomMembers[roomID] {
+            if members.isEmpty {
+                Text("いまは誰もいません")
+                    .font(.caption)
+                    .foregroundStyle(AccountContentStyle.secondary)
+            } else {
+                HStack(spacing: 6) {
+                    HStack(spacing: -6) {
+                        ForEach(members.prefix(3)) { member in
+                            ProfileAvatarView(
+                                avatarURL: member.avatarURL,
+                                avatarEmoji: member.avatarEmoji,
+                                size: 20,
+                                emojiSize: 11
+                            )
+                            .overlay(Circle().stroke(Color.white.opacity(0.8), lineWidth: 1))
+                        }
+                    }
+                    Text(Self.membersSummary(members))
+                        .font(.caption)
+                        .foregroundStyle(AccountContentStyle.secondary)
+                        .lineLimit(1)
                 }
+            }
+        }
+    }
+
+    /// 「たろう、はなこ ほか1人が参加中」
+    private static func membersSummary(_ members: [RoomMember]) -> String {
+        let names = members.prefix(2).map(\.nickname).joined(separator: "、")
+        let rest = members.count - 2
+        return rest > 0 ? "\(names) ほか\(rest)人が参加中" : "\(names)が参加中"
+    }
+
+    private var recentRoomsCard: some View {
+        let rooms = viewModel.recentRoomsToShow
+        let canSwipe = rooms.count > 1
+        let selected = rooms.firstIndex(of: recentRoomPage ?? "") ?? 0
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionTitle(text: "最近のルーム", systemImage: "clock.arrow.circlepath")
+            // 1 枚ずつ横にスワイプ。件数は下のドットで示す
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 10) {
+                    ForEach(rooms, id: \.self) { roomID in
+                        recentRoomRow(roomID)
+                            .containerRelativeFrame(.horizontal)
+                            .id(roomID)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $recentRoomPage)
+            if canSwipe {
+                HStack(spacing: 6) {
+                    ForEach(rooms.indices, id: \.self) { index in
+                        Circle()
+                            .fill(AccountContentStyle.primary.opacity(index == selected ? 0.7 : 0.2))
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .accessibilityHidden(true)
             }
         }
         .padding(16)

@@ -272,4 +272,62 @@ final class RoomViewModelTests {
         #expect(repository.calls.contains(.joinRoom(name: "weekend", policy: .inviteURL)))
         #expect(viewModel.currentRoomID == "weekend")
     }
+
+    // MARK: - 最近のルームの参加者
+
+    private func viewModelWithRecents(_ ids: [String]) -> RoomViewModel {
+        // 古い順に記録して、先頭が最新になるようにする
+        for id in ids.reversed() { RecentRoomStore.record(id, defaults: defaults) }
+        return RoomViewModel(repository: repository, defaults: defaults)
+    }
+
+    @Test func recentRoomMembersAreFetchedOnceAndSortedByJoinTime() async {
+        let vm = viewModelWithRecents(["room_a", "room_b"])
+        repository.fetchedMembers["room_a"] = [member("late", joinedAt: 20), member("early", joinedAt: 10)]
+        repository.fetchedMembers["room_b"] = []
+
+        await vm.refreshRecentRoomMembers()
+
+        #expect(vm.recentRoomMembers["room_a"]?.map(\.id) == ["early", "late"])
+        #expect(vm.recentRoomMembers["room_b"]?.isEmpty == true)
+        #expect(repository.fetchMembersCallCount == 2)
+    }
+
+    @Test func failedRoomIsLeftOutWithoutAffectingOthers() async {
+        let vm = viewModelWithRecents(["room_a", "room_b"])
+        repository.fetchedMembers["room_a"] = [member("taro", joinedAt: 1)]
+        // room_b は未設定 = 取得失敗
+
+        await vm.refreshRecentRoomMembers()
+
+        #expect(vm.recentRoomMembers["room_a"]?.count == 1)
+        #expect(vm.recentRoomMembers["room_b"] == nil)
+    }
+
+    @Test func refreshIsThrottledUnlessForced() async {
+        let vm = viewModelWithRecents(["room_a"])
+        repository.fetchedMembers["room_a"] = []
+
+        await vm.refreshRecentRoomMembers()
+        await vm.refreshRecentRoomMembers()
+        #expect(repository.fetchMembersCallCount == 1)
+
+        await vm.refreshRecentRoomMembers(force: true)
+        #expect(repository.fetchMembersCallCount == 2)
+    }
+
+    @Test func noFetchWhenThereAreNoRecentRooms() async {
+        await viewModel.refreshRecentRoomMembers()
+        #expect(repository.fetchMembersCallCount == 0)
+    }
+
+    @Test func removingRecentRoomDropsItsMembers() async {
+        let vm = viewModelWithRecents(["room_a"])
+        repository.fetchedMembers["room_a"] = [member("taro", joinedAt: 1)]
+        await vm.refreshRecentRoomMembers()
+
+        vm.removeRecentRoom("room_a")
+
+        #expect(vm.recentRoomMembers["room_a"] == nil)
+    }
 }

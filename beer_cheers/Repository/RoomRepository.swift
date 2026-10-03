@@ -24,6 +24,8 @@ protocol RoomRepositorying {
         avatarEmoji: String
     ) async throws
     func leaveMember(roomID: String, memberID: String) async throws
+    /// `members` 配下を 1 回だけ読む（監視はしない）。最近のルームの参加者表示用。
+    func fetchMembers(roomID: String) async throws -> [RoomMember]
     /// `members` 配下を監視する。戻り値のクロージャで停止する。
     func startListeningMembers(roomID: String, onUpdate: @escaping @MainActor ([RoomMember]) -> Void) -> () -> Void
     /// `meta` を監視する。削除されたら `onUpdate(nil)`。戻り値のクロージャで停止する。
@@ -190,6 +192,17 @@ struct RoomRepository: RoomRepositorying {
     }
 
     // MARK: - Listening
+
+    func fetchMembers(roomID: String) async throws -> [RoomMember] {
+        try Self.ensureFirebaseConfigured()
+        let safeRoom = try RoomID.normalize(roomID)
+        let snapshot = try await Self.getSnapshot(Self.membersReference(for: safeRoom))
+        // 非同期コンテキストでは NSEnumerator の for-in が使えないため allObjects を使う
+        return snapshot.children.allObjects.compactMap { child in
+            guard let childSnap = child as? DataSnapshot else { return nil }
+            return RoomMember.fromFirebaseValue(id: childSnap.key, value: childSnap.value)
+        }
+    }
 
     func startListeningMembers(
         roomID: String,
