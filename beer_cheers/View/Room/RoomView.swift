@@ -27,14 +27,14 @@ struct RoomView: View {
                 ScrollView {
                     VStack(spacing: 18) {
                         currentRoomCard
+                        if !viewModel.recentRoomsToShow.isEmpty {
+                            recentRoomsCard
+                        }
                         RoomFormCard(
                             viewModel: viewModel,
                             focusedField: $focusedField,
                             onJoinRequested: { showJoinConfirm = true }
                         )
-                        if !viewModel.recentRoomsToShow.isEmpty {
-                            recentRoomsCard
-                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
@@ -211,49 +211,70 @@ struct RoomView: View {
         .background(GlassCardBackground())
     }
 
-    private var recentRoomsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(text: "最近のルーム", systemImage: "clock.arrow.circlepath")
-            ForEach(viewModel.recentRoomsToShow, id: \.self) { roomID in
-                HStack(spacing: 8) {
-                    Button {
-                        focusedField = nil
-                        viewModel.prepareJoin(recentRoomID: roomID)
-                        showJoinConfirm = true
-                    } label: {
-                        HStack {
-                            Text(roomID)
-                                .font(.body.weight(.medium))
-                                .foregroundStyle(AccountContentStyle.primary)
-                                .lineLimit(1)
-                            Spacer(minLength: 0)
-                            Image(systemName: "arrow.right.circle.fill")
-                                .symbolRenderingMode(.hierarchical)
-                                .foregroundStyle(AccountContentStyle.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.white.opacity(0.22))
-                        )
-                        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(roomID) に参加")
-
-                    Button {
-                        viewModel.removeRecentRoom(roomID)
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AccountContentStyle.secondary)
-                            .frame(width: 32, height: 32)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(roomID) を履歴から削除")
+    private func recentRoomRow(_ roomID: String) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                focusedField = nil
+                viewModel.prepareJoin(recentRoomID: roomID)
+                showJoinConfirm = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "person.2.fill")
+                        .font(.footnote)
+                        .foregroundStyle(AccountContentStyle.primary.opacity(0.75))
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Color.white.opacity(0.35)))
+                    Text(roomID)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(AccountContentStyle.primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 8)
+                    Text("参加")
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(AccountContentStyle.primary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Capsule(style: .continuous).fill(Color.white.opacity(0.55)))
                 }
-                .disabled(viewModel.isLoading)
+                .padding(.leading, 10)
+                .padding(.trailing, 10)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(roomID) に参加")
+
+            Menu {
+                Button(role: .destructive) {
+                    viewModel.removeRecentRoom(roomID)
+                } label: {
+                    Label("履歴から削除", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AccountContentStyle.secondary)
+                    .frame(width: 36, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("\(roomID) のメニュー")
+        }
+        .padding(.trailing, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.22))
+        )
+        .disabled(viewModel.isLoading)
+    }
+
+    private var recentRoomsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionTitle(text: "最近のルーム", systemImage: "clock.arrow.circlepath")
+            VStack(spacing: 8) {
+                ForEach(viewModel.recentRoomsToShow, id: \.self) { roomID in
+                    recentRoomRow(roomID)
+                }
             }
         }
         .padding(16)
